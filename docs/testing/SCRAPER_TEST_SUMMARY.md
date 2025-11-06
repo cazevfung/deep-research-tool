@@ -42,9 +42,9 @@ All scrapers have been successfully tested and output saved as JSON files.
 
 ### Bilibili Scraper
 - **URL Tested**: https://www.bilibili.com/video/BV1Cy4AzPEc8/...
-- **Content**: Successfully extracted and transcribed video content using SnapAny + Whisper
+- **Content**: Successfully extracted and transcribed video content using SnapAny
 - **Word Count**: 2 words (large Chinese transcript successfully extracted)
-- **Method**: snapany_browser (SnapAny video download + Whisper transcription)
+- **Method**: snapany_browser (SnapAny video download + transcription)
 
 ### Reddit Scraper
 - **URL Tested**: https://www.reddit.com/r/ArcRaiders/comments/1kljxsb/...
@@ -94,7 +94,7 @@ All scrapers return data in the following format:
 ✅ All scrapers are working correctly and successfully extracting content as JSON.
 
 - **YouTube**: Extracting video transcripts
-- **Bilibili**: Downloading videos via SnapAny and transcribing with Whisper
+- **Bilibili**: Downloading videos via SnapAny and transcribing audio
 - **Reddit**: Extracting Reddit posts and comments
 - **Article**: Extracting articles from web pages using Playwright
 

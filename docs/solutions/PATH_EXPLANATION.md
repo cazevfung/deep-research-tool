@@ -34,5 +34,5 @@ audio_path = os.path.abspath("downloads\\bilibili_xxx.mp3")
 # Result: "D:\\App Dev\\Research Tool\\downloads\\bilibili_xxx.mp3"
 ```
 
-Now Whisper can find the file even if the working directory changes!
+Now the transcription tool can find the file even if the working directory changes!
 

@@ -88,7 +88,7 @@ This keeps the conversion logic separate and reusable.
 1. Download video → downloads/bilibili_xxx.mp4
 2. Call convert script with Python 3.13
 3. Get back audio file → downloads/bilibili_xxx.mp3 or .wav
-4. Load Whisper
+4. Load transcription tool
 5. Transcribe audio
 6. Return transcript
 7. Cleanup (if configured)

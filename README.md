@@ -242,7 +242,6 @@
 **后端:**
 - **FastAPI**: 现代、快速的 Web 框架
 - **Playwright**: 用于网页爬取的浏览器自动化
-- **faster-whisper**: 快速准确的音频转录（用于 Bilibili 备用方案）
 - **yt-dlp**: 视频下载（用于 Bilibili）
 - **dashscope**: 阿里云 Paraformer API（用于云端转录）
 - **openai**: 兼容 OpenAI 的 SDK，用于 Qwen API
@@ -279,8 +278,6 @@ scrapers:
   bilibili:
     headless: false
     timeout: 60000
-    whisper_model: 'tiny'  # 用于转录备用方案
-    use_faster_whisper: true
     # Paraformer 云端转录的 OSS 配置
     oss_access_key_id: 'YOUR_OSS_KEY'
     oss_access_key_secret: 'YOUR_OSS_SECRET'
@@ -655,7 +652,6 @@ playwright install chromium
 **Bilibili 转录失败:**
 - 验证 FFmpeg 已安装: `ffmpeg -version`
 - 检查 `config.yaml` 中的 OSS 配置以进行 Paraformer 云端转录
-- 确保 faster-whisper 已正确安装: `pip install faster-whisper`
 - 验证视频下载目录权限
 
 **音频转换失败:**

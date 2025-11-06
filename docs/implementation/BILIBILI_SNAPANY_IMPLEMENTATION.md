@@ -14,7 +14,7 @@ Uses [SnapAny.com](https://snapany.com/zh/bilibili) to bypass Bilibili's CDN pro
 6. **Open popup**: Click download button (opens new tab with video)
 7. **Extract video URL**: Get `<video>` source URL from popup
 8. **Download**: Save video to `downloads/` folder
-9. **Transcribe**: Use OpenAI Whisper to convert audio to text
+9. **Transcribe**: Use transcription tool to convert audio to text
 10. **Cleanup**: Delete video file after transcription
 
 ## Key Features
@@ -22,7 +22,7 @@ Uses [SnapAny.com](https://snapany.com/zh/bilibili) to bypass Bilibili's CDN pro
 - ✅ **Bypasses CDN protection**: SnapAny handles authentication
 - ✅ **Browser automation**: Uses Playwright to interact with SnapAny
 - ✅ **Video download**: Extracts video URL and downloads it
-- ✅ **Local transcription**: Uses Whisper for Chinese audio
+- ✅ **Local transcription**: Uses transcription tool for Chinese audio
 - ✅ **Auto-cleanup**: Deletes downloaded videos after processing
 
 ## Configuration
@@ -32,17 +32,17 @@ bilibili:
   headless: false  # Show browser for debugging
   timeout: 60000  # 60 seconds total timeout
   download_dir: 'downloads'
-  whisper_model: 'base'  # Options: 'tiny', 'base', 'small', 'medium', 'large'
-  whisper_language: 'zh'  # Chinese
+  transcription_model: 'base'  # Options: 'tiny', 'base', 'small', 'medium', 'large'
+  transcription_language: 'zh'  # Chinese
   cleanup_after: true  # Delete video files after transcription
-  num_workers: 1  # Sequential only (Whisper is resource intensive)
+  num_workers: 1  # Sequential only (transcription is resource intensive)
 ```
 
 ## Dependencies
 
 - **Playwright**: Browser automation (already installed)
 - **ffmpeg**: Audio extraction (already installed)
-- **openai-whisper**: Speech recognition (`pip install openai-whisper`)
+- **Speech recognition**: Speech recognition (`pip install speech-recognition`)
 
 ## Usage
 
@@ -68,12 +68,12 @@ python test_bilibili_snapany.py
 2. **No manual cookies**: SnapAny handles authentication
 3. **Reliable**: Uses third-party service that works
 4. **Fast**: Direct video download, no transcoding needed
-5. **Accurate**: Uses Whisper for high-quality transcription
+5. **Accurate**: Uses transcription tool for high-quality transcription
 
 ## Limitations
 
 - Requires internet connection
 - Depends on SnapAny service availability
-- Needs ffmpeg and Whisper installed
+- Needs ffmpeg and transcription tool installed
 - Processing time: ~5-10 minutes per video
 

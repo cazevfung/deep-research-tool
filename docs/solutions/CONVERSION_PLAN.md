@@ -24,7 +24,7 @@ We can use ffmpeg directly via subprocess WITHOUT needing moviepy installed.
        audio_path
    ])
    ```
-3. **Transcribe with Whisper** ✅
+3. **Transcribe audio** ✅
 4. **Cleanup files** ✅
 
 ### Why this will work:
@@ -37,7 +37,7 @@ We can use ffmpeg directly via subprocess WITHOUT needing moviepy installed.
 ### Process Flow:
 
 ```
-Video downloaded → ffmpeg conversion → Audio file → Whisper → Transcript
+Video downloaded → ffmpeg conversion → Audio file → Transcription → Transcript
 ```
 
 ### Implementation:

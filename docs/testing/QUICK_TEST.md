@@ -18,7 +18,7 @@ python test_bilibili_snapany.py
 3. Pastes your Bilibili URL
 4. Clicks extract button
 5. Downloads the video
-6. Transcribes with Whisper
+6. Transcribes audio
 7. Returns the Chinese transcript
 
 ### If you get "python not found":
@@ -39,14 +39,13 @@ Try these instead:
 1. Uses SnapAny (third-party service) to bypass Bilibili CDN protection
 2. Downloads video via browser automation
 3. Extracts audio with ffmpeg
-4. Transcribes with Whisper
+4. Transcribes audio
 5. Returns Chinese text
 
 ### Dependencies:
 
 - ✓ Playwright (already installed)
 - ✓ ffmpeg (you installed it)
-- Need: `pip install openai-whisper`
 
 
 

@@ -30,11 +30,11 @@ This completely bypasses video conversion.
 Instead of downloading video → converting → transcribing, we can:
 1. Get video URL from SnapAny ✅ (already have this)
 2. Use Python requests to download the video URL ✅ (already working)
-3. **Skip audio extraction** - just use Whisper on the video file directly!
+3. **Skip audio extraction** - just use transcription on the video file directly!
 
-Wait... Whisper might require audio extraction. Let me check the actual best solution.
+Wait... The transcription tool might require audio extraction. Let me check the actual best solution.
 
 ### Simpler: Just try direct video transcription
 
-Whisper might be able to handle .mp4 files directly without conversion!
+The transcription tool might be able to handle .mp4 files directly without conversion!
 

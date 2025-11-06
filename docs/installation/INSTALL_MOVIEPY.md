@@ -41,7 +41,7 @@ python test_bilibili_snapany.py
 The output will show the step-by-step process:
 - ✅ STEP 1: Video downloaded
 - ✅ STEP 2: Converting to audio
-- ✅ STEP 3: Loading Whisper
+- ✅ STEP 3: Loading transcription tool
 - ✅ STEP 4: Transcribing
 - ✅ STEP 5: Complete
 

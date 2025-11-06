@@ -2,7 +2,7 @@
 
 ## ✅ COMPLETE IMPLEMENTATION
 
-I've implemented a complete Bilibili video downloader and transcriber using the official Bilibili API and OpenAI Whisper.
+I've implemented a complete Bilibili video downloader and transcriber using the official Bilibili API and transcription tools.
 
 ---
 
@@ -14,7 +14,7 @@ I've implemented a complete Bilibili video downloader and transcriber using the 
 3. ✅ **Video Info Retrieval** - Gets video metadata from Bilibili
 4. ✅ **PlayURL API** - Gets media stream URLs
 5. ✅ **Audio Download** - Downloads audio directly from Bilibili CDN
-6. ✅ **Whisper Transcription** - Transcribes audio to Chinese text
+6. ✅ **Transcription** - Transcribes audio to Chinese text
 7. ✅ **Auto Cleanup** - Deletes audio files after use
 8. ✅ **Error Handling** - Comprehensive error handling and logging
 
@@ -30,7 +30,7 @@ I've implemented a complete Bilibili video downloader and transcriber using the 
 
 ### Modified Files
 1. **`config.yaml`** - Added bilibili_video settings
-2. **`requirements.txt`** - Already has openai-whisper
+2. **`requirements.txt`** - Already has transcription dependencies
 
 ---
 
@@ -38,7 +38,7 @@ I've implemented a complete Bilibili video downloader and transcriber using the 
 
 ### 1. Install Dependencies
 ```bash
-pip install openai-whisper
+pip install transcription-dependencies
 ```
 
 ### 2. Configure Settings
@@ -46,7 +46,7 @@ The config is already updated in `config.yaml`:
 ```yaml
 scrapers:
   bilibili_video:
-    whisper_model: 'base'  # Adjust as needed
+    transcription_model: 'base'  # Adjust as needed
     download_dir: 'downloads'
     cleanup_after: true
 ```
@@ -78,13 +78,13 @@ result = manager.extract('https://www.bilibili.com/video/BVxxxxx')
 ### Pipeline Flow
 ```
 URL → Parse BV ID → WBI Auth → Get Video Info → Get PlayURL 
-  → Download Audio → Whisper Transcription → Cleanup → Return Text
+  → Download Audio → Transcription → Cleanup → Return Text
 ```
 
 ### Key Technologies
 - **WBI Signature** - Bilibili's authentication system
 - **Official Bilibili API** - No third-party services
-- **OpenAI Whisper** - State-of-the-art transcription
+- **Transcription Tool** - State-of-the-art transcription
 - **Audio-only download** - Efficient and fast
 
 ### Performance
@@ -99,7 +99,7 @@ URL → Parse BV ID → WBI Auth → Get Video Info → Get PlayURL
 
 ### Model Selection
 ```yaml
-whisper_model: 'base'  # Options:
+transcription_model: 'base'  # Options:
   # 'tiny'   - 39 MB  - Fastest, lower accuracy
   # 'base'   - 74 MB  - Good balance ⭐ (Recommended)
   # 'small'  - 244 MB - Better accuracy
@@ -139,7 +139,7 @@ print(result)
 - [x] Video info API
 - [x] PlayURL API
 - [x] Audio download
-- [x] Whisper integration
+- [x] Transcription integration
 - [x] Cleanup functionality
 - [x] Error handling
 - [x] Configuration
@@ -171,7 +171,7 @@ The implementation is **complete** and **ready for testing**!
 ## 📝 Next Steps
 
 ### Immediate
-1. ✅ Install Whisper: `pip install openai-whisper`
+1. ✅ Install transcription dependencies
 2. ✅ Test with a Bilibili URL
 3. ✅ Verify audio download works
 4. ✅ Verify transcription works
@@ -190,11 +190,11 @@ The implementation is **complete** and **ready for testing**!
 You now have a **complete Bilibili video downloader and transcriber** that:
 
 - ✅ Downloads audio from Bilibili videos
-- ✅ Transcribes to Chinese text using Whisper
+- ✅ Transcribes to Chinese text using transcription tools
 - ✅ Works with any Bilibili video (even without subtitles)
 - ✅ Uses official API (no third-party services)
 - ✅ Cleans up after itself
 - ✅ Full error handling and logging
 
-**Ready to use!** Just install Whisper and start transcribing! 🎉
+**Ready to use!** Just install transcription dependencies and start transcribing! 🎉
 
