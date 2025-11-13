@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import ReactMarkdown from 'react-markdown'
 import Button from '../common/Button'
 import { PhaseTimelineItem } from '../../hooks/usePhaseInteraction'
 import Phase0SummaryDisplay from '../streaming/Phase0SummaryDisplay'
@@ -219,17 +220,21 @@ const StreamContentBubble: React.FC<StreamContentBubbleProps> = ({ item, collaps
         {parsedSummary ? (
           // Render Phase 0 summary with specialized component
           collapsed && item.isCollapsible ? (
-            <p className="whitespace-pre-wrap leading-relaxed text-xs text-neutral-600">{item.preview}</p>
+            <div className="prose prose-xs max-w-none prose-p:my-1 prose-strong:text-neutral-600">
+              <ReactMarkdown>{item.preview}</ReactMarkdown>
+            </div>
           ) : (
             <Phase0SummaryDisplay data={parsedSummary} />
           )
         ) : (
-          // Render as plain text
+          // Render as plain text or markdown
           item.isCollapsible && collapsed ? (
             // Show summary text with shining animation if streaming, otherwise show preview
             summaryText ? (
-              <p className="whitespace-pre-wrap leading-relaxed text-xs text-neutral-600 relative">
-                <span className="relative z-10">{summaryText}</span>
+              <div className="prose prose-xs max-w-none prose-p:my-1 prose-strong:text-neutral-600 relative">
+                <div className="relative z-10">
+                  <ReactMarkdown>{summaryText}</ReactMarkdown>
+                </div>
                 <span 
                   className="absolute inset-0 z-20 pointer-events-none"
                   style={{
@@ -239,12 +244,16 @@ const StreamContentBubble: React.FC<StreamContentBubbleProps> = ({ item, collaps
                     mixBlendMode: 'overlay',
                   }}
                 />
-              </p>
+              </div>
             ) : (
-              <p className="whitespace-pre-wrap leading-relaxed text-xs text-neutral-600">{item.preview}</p>
+              <div className="prose prose-xs max-w-none prose-p:my-1 prose-strong:text-neutral-600">
+                <ReactMarkdown>{item.preview}</ReactMarkdown>
+              </div>
             )
           ) : (
-            <pre className="whitespace-pre-wrap leading-relaxed text-xs text-neutral-700">{item.message}</pre>
+            <div className="prose prose-xs max-w-none prose-p:my-1 prose-strong:text-neutral-700 prose-pre:bg-transparent prose-pre:p-0 prose-pre:border-0">
+              <ReactMarkdown>{item.message}</ReactMarkdown>
+            </div>
           )
         )}
       </div>

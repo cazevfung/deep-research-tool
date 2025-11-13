@@ -8,6 +8,7 @@ available in a consistent schema for prompts and validators.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -155,6 +156,42 @@ class Phase4ContextBundle:
             return "（暂无显式证据条目；撰写时需引用Phase 3 摘要内容并标注来源。）"
         return "\n".join(record.to_prompt_lines() for record in self.evidence)
 
+    def component_alignment_context_text(self) -> str:
+        text = self.goal_alignment_text().strip()
+        if text:
+            return text
+        return "（尚未匹配组成问题与Phase 3步骤，撰写时需手动确认覆盖。）"
+
+    def component_questions_context_text(self) -> str:
+        text = self.component_questions_text().strip()
+        if text:
+            return text
+        return "（无组成问题列表；请根据研究主题自行拆解核心问题。）"
+
+    def source_mix_context_text(self) -> str:
+        hints = [record.source_hint.strip() for record in self.evidence if record.source_hint and record.source_hint.strip()]
+        if hints:
+            counts = Counter(hints)
+            sorted_items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+            lines = [f"- {hint} × {count}" for hint, count in sorted_items[:12]]
+            if len(sorted_items) > 12:
+                lines.append(f"- 其余来源 {len(sorted_items) - 12} 个（详见 evidence_catalog_json）")
+            return "来源覆盖统计：\n" + "\n".join(lines)
+        evidence_highlights = (self.phase3_text_blocks.get("phase3_evidence_highlights") or "").strip()
+        if evidence_highlights:
+            return "来源概览：\n" + evidence_highlights
+        return "（Phase 3 输出未提供明确的来源分布；撰写时需在引用证据时补充来源类型与出处。）"
+
+    def user_amendment_context_text(self) -> str:
+        guidance = []
+        if self.user_initial_guidance:
+            guidance.append(f"- 初始指导：{self.user_initial_guidance.strip()}")
+        if self.user_priority_notes and self.user_priority_notes.strip() not in self.user_initial_guidance:
+            guidance.append(f"- 后续优先事项：{self.user_priority_notes.strip()}")
+        if not guidance:
+            return "（用户未提供额外指导，可根据研究发现自主组织结构。）"
+        return "\n".join(guidance)
+
     def step_overview_text(self) -> str:
         if not self.steps:
             return "（Phase 3 没有可用步骤摘要。）"
@@ -165,6 +202,7 @@ class Phase4ContextBundle:
         role_display = self.research_role.get("role") or "资深管理咨询顾问"
         context = {
             "selected_goal": self.selected_goal,
+            "title": self.selected_goal,  # Alias for title placeholder (report title)
             "system_role_title": role_display,
             "system_role_description": role_display,  # Required by Phase 4 system prompt
             "research_role_display": self.research_role.get("role", ""),
@@ -183,6 +221,10 @@ class Phase4ContextBundle:
             "phase3_storyline_candidates": self.phase3_text_blocks.get("phase3_storyline_candidates", ""),
             "phase3_step_synopsis": self.step_overview_text(),
             "evidence_catalog": self.evidence_catalog_text(),
+            "component_alignment_context": self.component_alignment_context_text(),
+            "component_questions_context": self.component_questions_context_text(),
+            "source_mix_context": self.source_mix_context_text(),
+            "user_amendment_context": self.user_amendment_context_text(),
             "scratchpad_digest": self.scratchpad_digest or "暂无结构化发现。",
             "user_initial_guidance": self.user_initial_guidance or "",  # Keep for backward compatibility
             "user_priority_notes": self.user_priority_notes or "",  # Keep for backward compatibility

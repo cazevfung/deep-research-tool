@@ -93,33 +93,8 @@ const ResearchGoalList: React.FC<ResearchGoalListProps> = ({ goals }) => {
                       </p>
                     )}
 
-                    {goal.uses && goal.uses.length > 0 && (
-                      <div className="flex flex-wrap gap-2" aria-label="目标用途">
-                        {goal.uses.map((use, idx) => (
-                          <span
-                            key={`${goalId}-use-${idx}`}
-                            className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700"
-                          >
-                            {use}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </header>
-
-                {goal.sources && goal.sources.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-neutral-500">来源</p>
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-neutral-600">
-                      {goal.sources.map((source, sourceIdx) => (
-                        <span key={`${goalId}-source-${sourceIdx}`} className="rounded-md bg-neutral-100 px-2 py-1">
-                          {source}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {isLoading && (
                   <div className="flex items-center gap-2 text-xs text-neutral-400">

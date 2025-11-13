@@ -111,7 +111,7 @@ class ConversationContextService:
             "phase0": "Phase 0 focuses on validating scraped data quality, coverage, and readiness.",
             "phase0_5": "Phase 0.5 synthesizes an initial research role and tone calibration.",
             "phase1": "Phase 1 discovers research goals and clarifies investigative angles.",
-            "phase2": "Phase 2 synthesizes gathered context into a structured research plan.",
+            "phase2": "Phase 2 finalizes research goals into a unified comprehensive topic.",
             "phase3": "Phase 3 executes the plan step-by-step, extracting findings and evidence.",
             "phase4": "Phase 4 compiles final reports, ensuring coherence and coverage.",
             "research": "Research mode coordinates streaming outputs across active phases.",

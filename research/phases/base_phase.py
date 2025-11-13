@@ -50,7 +50,7 @@ class BasePhase(ABC):
             "phase0prepare": "phase0",
             "phase0_5rolegeneration": "phase0_5",
             "phase1discover": "phase1",
-            "phase2synthesize": "phase2",
+            "phase2finalize": "phase2",
             "phase3execute": "phase3",
             "phase4synthesize": "phase4",
         }

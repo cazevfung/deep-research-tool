@@ -597,6 +597,20 @@ class Phase3Execute(BasePhase):
             return True
         if not isinstance(result, dict):
             return False
+        
+        # CRITICAL: If result still has pending requests, it's incomplete - don't use it
+        pending_requests = result.get("requests")
+        if isinstance(pending_requests, list) and len(pending_requests) > 0:
+            try:
+                self.logger.warning(
+                    "[PHASE3-ROUTER] step=%s rejecting incomplete result: %s pending requests not processed",
+                    step_id,
+                    len(pending_requests),
+                )
+            except Exception:
+                pass
+            return False
+        
         stats = self._step_stats.get(step_id) or {}
         vector_hits = int(stats.get("vector_hits", 0))
         appended_chars = int(stats.get("vector_appended_chars", 0))
@@ -1493,7 +1507,7 @@ class Phase3Execute(BasePhase):
         allow_vector: bool = True,
         usage_tag: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Execute a single step with marker-first approach and optional retrieval flow."""
+        """Execute a single step using two-stage workflow: context request then analysis generation."""
         safe_summary = scratchpad_summary if scratchpad_summary != "暂无发现。" else "暂无之前的发现。"
         safe_data_chunk = self._safe_truncate_data_chunk(data_chunk, required_data, chunk_strategy)
         digest_context = self.session.aggregate_step_digests(
@@ -1511,7 +1525,7 @@ class Phase3Execute(BasePhase):
         
         # Prepare marker overview if batch_data is available
         marker_overview = ""
-        retrieved_content = ""  # Initially empty, will be populated by requests
+        retrieved_content = ""  # Initially empty, will be populated by requests from Stage 1
         
         if batch_data:
             try:
@@ -1528,50 +1542,47 @@ class Phase3Execute(BasePhase):
             self.logger.info(f"[Step {step_id}] Using data_chunk (no batch_data for markers)")
         
         user_guidance_context = self._build_user_feedback_context()
+        # Get user intent fields for system prompt (includes user_guidance placeholder)
+        user_intent = self._get_user_intent_fields(include_post_phase1_feedback=True)
 
         role_context = getattr(self, "_shared_role_context", {}) or {}
         context = {
             **role_context,
             "step_id": step_id,
             "goal": goal,
-            "marker_overview": marker_overview,  # New: marker overview first
+            "marker_overview": marker_overview,
             "data_chunk": safe_data_chunk if not marker_overview else "",  # Keep for backward compatibility
-            "retrieved_content": retrieved_content,  # Will be populated by requests
+            "retrieved_content": retrieved_content,  # Will be populated by requests from Stage 1
             "scratchpad_summary": safe_summary,
-            "previous_chunks_context": chunks_context_str,  # Enhancement #1
+            "previous_chunks_context": chunks_context_str,
             "user_guidance_context": user_guidance_context,
+            "user_guidance": user_intent["user_guidance"],  # Required by system.md template
+            "user_context": user_intent["user_context"],  # For consistency
             "cumulative_digest": digest_context,
             "novelty_guidance": novelty_guidance,
         }
-        messages = compose_messages("phase3_execute", context=context)
         
-        # Stream and parse initial JSON response
-        try:
-            self.logger.info(
-                "[Step %s] Sending to model: data_chunk_len=%s, prev_ctx_len=%s",
-                step_id, len(safe_data_chunk or ""), len(chunks_context_str or "")
-            )
-        except Exception:
-            pass
-
-        # Time the API call
-        api_start_time = time.time()
-        step_display_id = step_id  # Use for logging
-        self.logger.info(f"[TIMING] Starting API call for Step {step_display_id} at {api_start_time:.3f}")
-        
-        # Send progress update before API call
+        # ===================================================================
+        # STAGE 1: Context Request (Request-Only)
+        # ===================================================================
+        self.logger.info(f"[PHASE3-TWO-STAGE] Step {step_id}: Starting Stage 1 - Context Request")
         if hasattr(self, 'ui') and self.ui:
-            self.ui.display_message(f"正在调用AI分析数据 (步骤 {step_display_id})...", "info")
+            self.ui.display_message(f"正在请求上下文 (步骤 {step_id})...", "info")
         
-        base_tag = usage_tag or f"phase3_step_{step_id}_initial"
+        # Stage 1: Context Request
+        context_request_messages = compose_messages("phase3_execute_context_request", context=context)
+        
+        # Time the Stage 1 API call
+        stage1_start = time.time()
+        stage1_tag = usage_tag or f"phase3_step_{step_id}_context_request"
 
-        response1 = self._stream_with_callback(
-            messages,
-            usage_tag=base_tag,
+        request_response = self._stream_with_callback(
+            context_request_messages,
+            usage_tag=stage1_tag,
             log_payload=True,
-            payload_label=base_tag,
+            payload_label=stage1_tag,
             stream_metadata={
-                "component": "step_initial",
+                "component": "step_context_request",
                 "phase_label": "3",
                 "step_id": step_id,
                 "goal": goal,
@@ -1580,44 +1591,125 @@ class Phase3Execute(BasePhase):
                 "vector_enabled": bool(allow_vector),
             },
         )
-        api_elapsed = time.time() - api_start_time
-        self.logger.info(f"[TIMING] API call completed in {api_elapsed:.3f}s for Step {step_display_id}")
+        stage1_elapsed = time.time() - stage1_start
+        self.logger.info(f"[TIMING] Stage 1 (Context Request) completed in {stage1_elapsed:.3f}s for Step {step_id}")
         
-        parsed1 = self._parse_phase3_response_forgiving(response1, step_id)
+        # Parse Stage 1 response (requests only, no findings field)
+        try:
+            request_parsed = self._parse_context_request_response(request_response, step_id)
+        except Exception as e:
+            self.logger.error(f"[PHASE3-TWO-STAGE] Step {step_id}: Failed to parse context request response: {e}")
+            # Fallback: create empty requests
+            request_parsed = {
+                "step_id": step_id,
+                "requests": [],
+                "insights": f"Parsing error: {str(e)}",
+                    "confidence": 0.3,
+            }
+        
+        # Extract requests from Stage 1
+        requests = request_parsed.get("requests", [])
+        if not isinstance(requests, list):
+            requests = []
+        
+        self.logger.info(
+            f"[PHASE3-TWO-STAGE] Step {step_id}: Stage 1 returned {len(requests)} requests"
+        )
 
-        # If the model requests more context, run a follow-up turn with retrieved content
-        requests: List[Dict[str, Any]] = []
-        if isinstance(parsed1, dict):
-            if parsed1.get("requests") and isinstance(parsed1["requests"], list):
-                requests = parsed1["requests"]
-            elif allow_vector and parsed1.get("missing_context") and isinstance(parsed1["missing_context"], list):
-                # Convert missing_context to retrieval requests when vector flow is enabled
-                requests = self._convert_missing_context_to_requests(parsed1["missing_context"])  # type: ignore
-
-        # Enhanced back-and-forth retrieval flow
-        if requests and allow_vector:
-            return self._run_followups_with_retrieval(
-                step_id,
-                messages,
-                response1,
-                parsed1,
-                requests,
-                batch_data=batch_data,  # Pass batch_data for retrieval
-                base_usage_tag=base_tag,
-                allow_vector=True,
-                vector_round_cap=self._vector_max_rounds,
+        # If requests exist, retrieve context
+        if requests:
+            self.logger.info(
+                f"[PHASE3-TWO-STAGE] Step {step_id}: Retrieving context for {len(requests)} requests"
             )
-        elif requests and not allow_vector:
-            try:
-                self.logger.warning(
-                    "[PHASE3-ROUTER] step=%s skipping follow-up retrieval (vector disabled, %s requests)",
-                    step_id,
-                    len(requests),
-                )
-            except Exception:
-                pass
+            if hasattr(self, 'ui') and self.ui:
+                self.ui.display_message(f"正在检索上下文 (步骤 {step_id})...", "info")
+            
+            retrieved_content = self._retrieve_context_for_requests(
+                requests,
+                batch_data=batch_data,
+                step_id=step_id,
+                allow_vector=allow_vector,
+            )
+            
+            # Update context with retrieved content
+            context["retrieved_content"] = retrieved_content
+            
+            self.logger.info(
+                f"[PHASE3-TWO-STAGE] Step {step_id}: Retrieved {len(retrieved_content)} chars of context"
+            )
+        else:
+            self.logger.info(
+                f"[PHASE3-TWO-STAGE] Step {step_id}: No requests from Stage 1, proceeding with existing context"
+            )
+        
+        # ===================================================================
+        # STAGE 2: Analysis Generation (Findings-Only)
+        # ===================================================================
+        self.logger.info(f"[PHASE3-TWO-STAGE] Step {step_id}: Starting Stage 2 - Analysis Generation")
+        if hasattr(self, 'ui') and self.ui:
+            self.ui.display_message(f"正在生成分析 (步骤 {step_id})...", "info")
+        
+        # Stage 2: Analysis Generation
+        analysis_messages = compose_messages("phase3_execute_analysis_generation", context=context)
+        
+        # Time the Stage 2 API call
+        stage2_start = time.time()
+        stage2_tag = usage_tag or f"phase3_step_{step_id}_analysis_generation"
+        
+        analysis_response = self._stream_with_callback(
+            analysis_messages,
+            usage_tag=stage2_tag,
+            log_payload=True,
+            payload_label=stage2_tag,
+            stream_metadata={
+                "component": "step_analysis_generation",
+                "phase_label": "3",
+                "step_id": step_id,
+                "goal": goal,
+                "required_data": required_data,
+                "chunk_strategy": chunk_strategy,
+                "vector_enabled": bool(allow_vector),
+            },
+        )
+        stage2_elapsed = time.time() - stage2_start
+        self.logger.info(f"[TIMING] Stage 2 (Analysis Generation) completed in {stage2_elapsed:.3f}s for Step {step_id}")
+        
+        # Parse Stage 2 response (findings only, no requests field)
+        try:
+            analysis_parsed = self._parse_analysis_generation_response(analysis_response, step_id)
+        except Exception as e:
+            self.logger.error(f"[PHASE3-TWO-STAGE] Step {step_id}: Failed to parse analysis generation response: {e}")
+            # This is a critical error - we can't proceed without findings
+            # Return error response
+            return {
+                "step_id": step_id,
+                "findings": {
+                    "summary": f"分析生成失败: {str(e)}",
+                    "article": f"无法解析AI响应: {str(e)}",
+                    "points_of_interest": {},
+                    "analysis_details": {},
+                },
+                "insights": f"解析错误: {str(e)}",
+                "confidence": 0.1,
+                "requests": [],  # No requests in Stage 2
+            }
+        
+        # Validate: analysis should not have requests (schema doesn't include it)
+        if "requests" in analysis_parsed:
+            self.logger.error(
+                f"[PHASE3-TWO-STAGE] Step {step_id}: Analysis generation returned requests field, "
+                f"which should not exist in the schema. This indicates a schema violation."
+            )
+            del analysis_parsed["requests"]
+        
+        # Ensure requests field is set to empty array for consistency
+        analysis_parsed["requests"] = []
+        
+        self.logger.info(
+            f"[PHASE3-TWO-STAGE] Step {step_id}: Stage 2 completed successfully with findings"
+            )
 
-        return parsed1
+        return analysis_parsed
 
     # ----------------------------- Enhanced Retrieval Loop -----------------------------
     def _run_followups_with_retrieval(
@@ -1970,96 +2062,737 @@ class Phase3Execute(BasePhase):
 
     def _parse_phase3_response_forgiving(self, response_text: str, step_id: int) -> Dict[str, Any]:
         """Parse model response into the expected JSON shape with a forgiving fallback."""
+        # CRITICAL: Handle None or empty response_text - must check BEFORE any operations
+        if response_text is None:
+            self.logger.error(f"[PHASE3-PARSE] response_text is None for step {step_id} - this should not happen!")
+            return {
+                "step_id": step_id,
+                "findings": {"raw_analysis": "No response received from API"},
+                "insights": "No response received from API",
+                "confidence": 0.3,
+                "requests": [],
+            }
+        
+        if not isinstance(response_text, str):
+            self.logger.warning(f"[PHASE3-PARSE] response_text is not a string for step {step_id}: {type(response_text)}")
+            # Try to convert to string, but also try to extract requests if it's a dict
+            if isinstance(response_text, dict):
+                extracted_requests = response_text.get("requests", [])
+                if isinstance(extracted_requests, list) and len(extracted_requests) > 0:
+                    self.logger.info(f"[PHASE3-PARSE] Extracted {len(extracted_requests)} requests from dict response")
+                    return {
+                        "step_id": step_id,
+                        "findings": None,
+                        "insights": str(response_text.get("insights", ""))[:500],
+                        "confidence": float(response_text.get("confidence", 0.5)),
+                        "requests": extracted_requests,
+                    }
+            return {
+                "step_id": step_id,
+                "findings": {"raw_analysis": str(response_text)},
+                "insights": str(response_text)[:500],
+                "confidence": 0.3,
+                "requests": [],
+            }
+        
+        if not response_text.strip():
+            self.logger.warning(f"[PHASE3-PARSE] Empty response_text for step {step_id}")
+            return {
+                "step_id": step_id,
+                "findings": {"raw_analysis": "Empty response received"},
+                "insights": "Empty response received",
+                "confidence": 0.3,
+                "requests": [],
+            }
+        
+        # Store original response_text for request extraction in case parsing fails
+        original_response = response_text
+        
         try:
             parsed = self.client.parse_json_from_stream(iter([response_text]))
+            # Handle None or non-dict returns from parse_json_from_stream
+            if parsed is None or not isinstance(parsed, dict):
+                # Treat as parsing failure, fall through to exception handler
+                raise ValueError(f"parse_json_from_stream returned {type(parsed).__name__}, expected dict")
+            
             # Auto-fill missing required fields to be forgiving
-            if isinstance(parsed, dict):
-                if "step_id" not in parsed:
-                    parsed["step_id"] = step_id
-                
-                # Ensure requests and missing_context are lists
-                if "requests" not in parsed or not isinstance(parsed.get("requests"), list):
-                    parsed["requests"] = []
-                if "missing_context" not in parsed or not isinstance(parsed.get("missing_context"), list):
-                    parsed["missing_context"] = []
-                
-                # Check if there are any requests
-                has_requests = (
-                    (parsed.get("requests") and len(parsed["requests"]) > 0) or
-                    (parsed.get("missing_context") and len(parsed["missing_context"]) > 0)
-                )
-                
-                # Handle findings conditionally:
-                # - If requests exist, allow findings to be null/omitted
-                # - If no requests, ensure findings is a dict
-                if has_requests:
-                    # When requests exist, allow findings to be null or omitted
-                    if "findings" not in parsed:
-                        parsed["findings"] = None
-                    elif parsed.get("findings") is not None and not isinstance(parsed.get("findings"), dict):
-                        # If findings is provided but not null/dict, set to null when requests exist
-                        parsed["findings"] = None
-                else:
-                    # When no requests, ensure findings is a dict
-                    if "findings" not in parsed or not isinstance(parsed.get("findings"), dict):
-                        parsed["findings"] = parsed.get("findings", {}) if isinstance(parsed.get("findings"), dict) else {}
-                
-                if "insights" not in parsed or not isinstance(parsed.get("insights"), str):
-                    parsed["insights"] = str(parsed.get("insights", ""))
-                if "confidence" not in parsed or not isinstance(parsed.get("confidence"), (int, float)):
-                    parsed["confidence"] = 0.6
+            if "step_id" not in parsed:
+                parsed["step_id"] = step_id
+            
+            # Ensure requests and missing_context are lists
+            if "requests" not in parsed or not isinstance(parsed.get("requests"), list):
+                parsed["requests"] = []
+            if "missing_context" not in parsed or not isinstance(parsed.get("missing_context"), list):
+                parsed["missing_context"] = []
+            
+            # Check if there are any requests
+            has_requests = (
+                (parsed.get("requests") and len(parsed["requests"]) > 0) or
+                (parsed.get("missing_context") and len(parsed["missing_context"]) > 0)
+            )
+            
+            # Handle findings conditionally:
+            # - If requests exist, allow findings to be null/omitted
+            # - If no requests, ensure findings is a dict
+            if has_requests:
+                # When requests exist, allow findings to be null or omitted
+                if "findings" not in parsed:
+                    parsed["findings"] = None
+                elif parsed.get("findings") is not None and not isinstance(parsed.get("findings"), dict):
+                    # If findings is provided but not null/dict, set to null when requests exist
+                    parsed["findings"] = None
+            else:
+                # When no requests, ensure findings is a dict
+                if "findings" not in parsed or not isinstance(parsed.get("findings"), dict):
+                    parsed["findings"] = parsed.get("findings", {}) if isinstance(parsed.get("findings"), dict) else {}
+            
+            if "insights" not in parsed or not isinstance(parsed.get("insights"), str):
+                parsed["insights"] = str(parsed.get("insights", ""))
+            if "confidence" not in parsed or not isinstance(parsed.get("confidence"), (int, float)):
+                parsed["confidence"] = 0.6
             self._validate_phase3_schema(parsed)
             return parsed
         except Exception as e:
-            self.logger.warning(f"JSON parsing error: {e}")
+            self.logger.warning(f"[PHASE3-PARSE] JSON parsing error for step {step_id}: {e}")
             import re
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            # Use original_response which we know is a valid string
+            response_to_parse = original_response
+            # Safety check: ensure we have a valid string to work with
+            if not response_to_parse or not isinstance(response_to_parse, str):
+                self.logger.error(f"[PHASE3-PARSE] original_response is invalid in exception handler for step {step_id}: {type(response_to_parse)}")
+                return {
+                    "step_id": step_id,
+                    "findings": {"raw_analysis": str(response_to_parse) if response_to_parse else "No response received"},
+                    "insights": str(response_to_parse)[:500] if response_to_parse else "No response received",
+                    "confidence": 0.3,
+                    "requests": [],
+                }
+            json_match = re.search(r'\{.*\}', response_to_parse, re.DOTALL)
             if json_match:
-                parsed = json.loads(json_match.group())
-                # Schema validation remains forgiving (extra fields allowed)
-                if isinstance(parsed, dict):
-                    if "step_id" not in parsed:
-                        parsed["step_id"] = step_id
+                try:
+                    parsed = json.loads(json_match.group())
+                    # Schema validation remains forgiving (extra fields allowed)
+                    if isinstance(parsed, dict):
+                        if "step_id" not in parsed:
+                            parsed["step_id"] = step_id
+                        
+                        # Ensure requests and missing_context are lists
+                        if "requests" not in parsed or not isinstance(parsed.get("requests"), list):
+                            parsed["requests"] = []
+                        if "missing_context" not in parsed or not isinstance(parsed.get("missing_context"), list):
+                            parsed["missing_context"] = []
+                        
+                        # Check if there are any requests
+                        has_requests = (
+                            (parsed.get("requests") and len(parsed["requests"]) > 0) or
+                            (parsed.get("missing_context") and len(parsed["missing_context"]) > 0)
+                        )
+                        
+                        # Handle findings conditionally:
+                        # - If requests exist, allow findings to be null/omitted
+                        # - If no requests, ensure findings is a dict
+                        if has_requests:
+                            # When requests exist, allow findings to be null or omitted
+                            if "findings" not in parsed:
+                                parsed["findings"] = None
+                            elif parsed.get("findings") is not None and not isinstance(parsed.get("findings"), dict):
+                                # If findings is provided but not null/dict, set to null when requests exist
+                                parsed["findings"] = None
+                        else:
+                            # When no requests, ensure findings is a dict
+                            if "findings" not in parsed or not isinstance(parsed.get("findings"), dict):
+                                parsed["findings"] = parsed.get("findings", {}) if isinstance(parsed.get("findings"), dict) else {}
+                        
+                        if "insights" not in parsed or not isinstance(parsed.get("insights"), str):
+                            parsed["insights"] = str(parsed.get("insights", ""))
+                        if "confidence" not in parsed or not isinstance(parsed.get("confidence"), (int, float)):
+                            parsed["confidence"] = 0.6
+                        self._validate_phase3_schema(parsed)
+                        return parsed
+                except (json.JSONDecodeError, ValueError, TypeError) as json_err:
+                    self.logger.warning(f"[PHASE3-PARSE] Fallback JSON parsing also failed for step {step_id}: {json_err}")
+                    # CRITICAL: Even when parsing fails, try to extract requests from raw response
+                    # This is essential - requests must not be lost!
+                    extracted_requests = []
+                    try:
+                        # Find "requests": and extract the array using balanced bracket matching
+                        requests_start = response_to_parse.find('"requests"')
+                        if requests_start >= 0:
+                            # Find the opening bracket after "requests"
+                            bracket_start = response_to_parse.find('[', requests_start)
+                            if bracket_start >= 0:
+                                # Count brackets to find the matching closing bracket
+                                bracket_count = 0
+                                bracket_end = bracket_start
+                                for i in range(bracket_start, len(response_to_parse)):
+                                    if response_to_parse[i] == '[':
+                                        bracket_count += 1
+                                    elif response_to_parse[i] == ']':
+                                        bracket_count -= 1
+                                        if bracket_count == 0:
+                                            bracket_end = i + 1
+                                            break
+                                if bracket_end > bracket_start:
+                                    requests_str = response_to_parse[bracket_start:bracket_end]
+                                    try:
+                                        extracted_requests = json.loads(requests_str)
+                                        if isinstance(extracted_requests, list):
+                                            self.logger.info(f"[PHASE3-PARSE] Extracted {len(extracted_requests)} requests from raw response despite parsing failure")
+                                    except json.JSONDecodeError:
+                                        self.logger.warning(f"[PHASE3-PARSE] Found requests array but couldn't parse it: {requests_str[:100]}")
+                    except Exception as extract_err:
+                        self.logger.warning(f"[PHASE3-PARSE] Failed to extract requests from raw response: {extract_err}")
                     
-                    # Ensure requests and missing_context are lists
-                    if "requests" not in parsed or not isinstance(parsed.get("requests"), list):
-                        parsed["requests"] = []
-                    if "missing_context" not in parsed or not isinstance(parsed.get("missing_context"), list):
-                        parsed["missing_context"] = []
-                    
-                    # Check if there are any requests
-                    has_requests = (
-                        (parsed.get("requests") and len(parsed["requests"]) > 0) or
-                        (parsed.get("missing_context") and len(parsed["missing_context"]) > 0)
-                    )
-                    
-                    # Handle findings conditionally:
-                    # - If requests exist, allow findings to be null/omitted
-                    # - If no requests, ensure findings is a dict
-                    if has_requests:
-                        # When requests exist, allow findings to be null or omitted
-                        if "findings" not in parsed:
-                            parsed["findings"] = None
-                        elif parsed.get("findings") is not None and not isinstance(parsed.get("findings"), dict):
-                            # If findings is provided but not null/dict, set to null when requests exist
-                            parsed["findings"] = None
-                    else:
-                        # When no requests, ensure findings is a dict
-                        if "findings" not in parsed or not isinstance(parsed.get("findings"), dict):
-                            parsed["findings"] = parsed.get("findings", {}) if isinstance(parsed.get("findings"), dict) else {}
-                    
-                    if "insights" not in parsed or not isinstance(parsed.get("insights"), str):
-                        parsed["insights"] = str(parsed.get("insights", ""))
-                    if "confidence" not in parsed or not isinstance(parsed.get("confidence"), (int, float)):
-                        parsed["confidence"] = 0.6
-                self._validate_phase3_schema(parsed)
-                return parsed
+                    # Return with extracted requests if found, otherwise empty
+                    # CRITICAL: Always return requests if we found any, even if full parsing failed
+                    if extracted_requests:
+                        self.logger.info(f"[PHASE3-PARSE] Returning {len(extracted_requests)} extracted requests despite parsing failure for step {step_id}")
+                    return {
+                        "step_id": step_id,
+                        "findings": {"raw_analysis": response_to_parse},
+                        "insights": response_to_parse[:500],
+                        "confidence": 0.5,
+                        "requests": extracted_requests,  # Include extracted requests - CRITICAL!
+                    }
+            # Final fallback - no JSON found at all, but still try to extract requests
+            extracted_requests = []
+            try:
+                # Find "requests": and extract the array using balanced bracket matching
+                requests_start = response_to_parse.find('"requests"')
+                if requests_start >= 0:
+                    # Find the opening bracket after "requests"
+                    bracket_start = response_to_parse.find('[', requests_start)
+                    if bracket_start >= 0:
+                        # Count brackets to find the matching closing bracket
+                        bracket_count = 0
+                        bracket_end = bracket_start
+                        for i in range(bracket_start, len(response_to_parse)):
+                            if response_to_parse[i] == '[':
+                                bracket_count += 1
+                            elif response_to_parse[i] == ']':
+                                bracket_count -= 1
+                                if bracket_count == 0:
+                                    bracket_end = i + 1
+                                    break
+                        if bracket_end > bracket_start:
+                            requests_str = response_to_parse[bracket_start:bracket_end]
+                            try:
+                                extracted_requests = json.loads(requests_str)
+                                if isinstance(extracted_requests, list):
+                                    self.logger.info(f"[PHASE3-PARSE] Extracted {len(extracted_requests)} requests from raw response (no JSON found) for step {step_id}")
+                            except json.JSONDecodeError:
+                                pass
+            except Exception as final_err:
+                self.logger.warning(f"[PHASE3-PARSE] Failed to extract requests in final fallback for step {step_id}: {final_err}")
+            # CRITICAL: Always return requests if we found any, even if full parsing failed
+            if extracted_requests:
+                self.logger.info(f"[PHASE3-PARSE] Returning {len(extracted_requests)} extracted requests from final fallback for step {step_id}")
             return {
                 "step_id": step_id,
-                "findings": {"raw_analysis": response_text},
-                "insights": response_text[:500],
+                "findings": {"raw_analysis": response_to_parse},
+                "insights": response_to_parse[:500],
                 "confidence": 0.5,
+                "requests": extracted_requests,  # Include extracted requests - CRITICAL!
             }
+
+    def _parse_context_request_response(
+        self, 
+        response_text: str, 
+        step_id: int
+    ) -> Dict[str, Any]:
+        """Parse context request response (requests only, no findings field in schema)."""
+        # CRITICAL: Handle None or empty response_text
+        if response_text is None:
+            self.logger.error(f"[PHASE3-CONTEXT-REQUEST] response_text is None for step {step_id}")
+            return {
+                "step_id": step_id,
+                "requests": [],
+                "insights": "No response received from API",
+                "confidence": 0.3,
+            }
+        
+        if not isinstance(response_text, str):
+            self.logger.warning(f"[PHASE3-CONTEXT-REQUEST] response_text is not a string for step {step_id}: {type(response_text)}")
+            if isinstance(response_text, dict):
+                requests = response_text.get("requests", [])
+                return {
+                    "step_id": step_id,
+                    "requests": requests if isinstance(requests, list) else [],
+                    "insights": str(response_text.get("insights", "")),
+                    "confidence": float(response_text.get("confidence", 0.5)),
+                }
+            return {
+                "step_id": step_id,
+                "requests": [],
+                "insights": "Invalid response format",
+                "confidence": 0.3,
+            }
+        
+        if not response_text.strip():
+            self.logger.warning(f"[PHASE3-CONTEXT-REQUEST] Empty response_text for step {step_id}")
+            return {
+                "step_id": step_id,
+                "requests": [],
+                "insights": "Empty response received",
+                "confidence": 0.3,
+            }
+        
+        # Try to parse using context_request schema
+        try:
+            parsed = self.client.parse_json_from_stream(iter([response_text]))
+            if parsed is None or not isinstance(parsed, dict):
+                raise ValueError(f"parse_json_from_stream returned {type(parsed).__name__}, expected dict")
+            
+            # Validate: findings field should not exist in schema
+            if "findings" in parsed:
+                self.logger.warning(
+                    f"[PHASE3-CONTEXT-REQUEST] Step {step_id}: Context request returned findings field, "
+                    f"which is not in the schema. Removing it."
+                )
+                del parsed["findings"]
+            
+            # Ensure step_id is set
+            if "step_id" not in parsed:
+                parsed["step_id"] = step_id
+            elif parsed["step_id"] != step_id:
+                self.logger.warning(
+                    f"[PHASE3-CONTEXT-REQUEST] Step {step_id}: step_id mismatch in response: {parsed['step_id']}"
+                )
+                parsed["step_id"] = step_id
+            
+            # Validate: must have requests (can be empty array)
+            if "requests" not in parsed:
+                parsed["requests"] = []
+            elif not isinstance(parsed.get("requests"), list):
+                self.logger.warning(
+                    f"[PHASE3-CONTEXT-REQUEST] Step {step_id}: requests is not a list, converting to empty list"
+                )
+                parsed["requests"] = []
+            
+            # Optional fields
+            if "insights" not in parsed:
+                parsed["insights"] = ""
+            elif not isinstance(parsed.get("insights"), str):
+                parsed["insights"] = str(parsed.get("insights", ""))
+            
+            if "confidence" not in parsed:
+                parsed["confidence"] = 0.5
+            elif not isinstance(parsed.get("confidence"), (int, float)):
+                parsed["confidence"] = 0.5
+            
+            # Validate schema
+            schema = load_schema("phase3_execute_context_request", name="output_schema.json")
+            if schema:
+                # Basic validation - check required fields
+                if "step_id" not in parsed:
+                    raise ValueError("Schema validation failed: missing required key 'step_id'")
+                if "requests" not in parsed:
+                    raise ValueError("Schema validation failed: missing required key 'requests'")
+            
+            return parsed
+            
+        except Exception as e:
+            self.logger.warning(f"[PHASE3-CONTEXT-REQUEST] JSON parsing error for step {step_id}: {e}")
+            # Fallback: try to extract requests from raw response
+            import re
+            extracted_requests = []
+            try:
+                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+                    if isinstance(parsed, dict):
+                        # Remove findings if present
+                        if "findings" in parsed:
+                            del parsed["findings"]
+                        # Extract requests
+                        if "requests" in parsed and isinstance(parsed.get("requests"), list):
+                            extracted_requests = parsed["requests"]
+                            self.logger.info(
+                                f"[PHASE3-CONTEXT-REQUEST] Extracted {len(extracted_requests)} requests "
+                                f"from fallback parsing for step {step_id}"
+                            )
+                        return {
+                            "step_id": step_id,
+                            "requests": extracted_requests,
+                            "insights": str(parsed.get("insights", ""))[:500],
+                            "confidence": float(parsed.get("confidence", 0.5)),
+                        }
+            except Exception as fallback_err:
+                self.logger.warning(
+                    f"[PHASE3-CONTEXT-REQUEST] Fallback parsing also failed for step {step_id}: {fallback_err}"
+                )
+            
+            # Final fallback: try to extract requests array directly
+            try:
+                requests_start = response_text.find('"requests"')
+                if requests_start >= 0:
+                    bracket_start = response_text.find('[', requests_start)
+                    if bracket_start >= 0:
+                        bracket_count = 0
+                        bracket_end = bracket_start
+                        for i in range(bracket_start, len(response_text)):
+                            if response_text[i] == '[':
+                                bracket_count += 1
+                            elif response_text[i] == ']':
+                                bracket_count -= 1
+                                if bracket_count == 0:
+                                    bracket_end = i + 1
+                                    break
+                        if bracket_end > bracket_start:
+                            requests_str = response_text[bracket_start:bracket_end]
+                            extracted_requests = json.loads(requests_str)
+                            if isinstance(extracted_requests, list):
+                                self.logger.info(
+                                    f"[PHASE3-CONTEXT-REQUEST] Extracted {len(extracted_requests)} requests "
+                                    f"from raw response for step {step_id}"
+                                )
+            except Exception as extract_err:
+                self.logger.warning(
+                    f"[PHASE3-CONTEXT-REQUEST] Failed to extract requests from raw response for step {step_id}: {extract_err}"
+                )
+            
+            return {
+                "step_id": step_id,
+                "requests": extracted_requests,
+                "insights": response_text[:500] if response_text else "Parsing failed",
+                "confidence": 0.3,
+            }
+
+    def _parse_analysis_generation_response(
+        self,
+        response_text: str,
+        step_id: int
+    ) -> Dict[str, Any]:
+        """Parse analysis generation response (findings only, no requests field in schema)."""
+        # CRITICAL: Handle None or empty response_text
+        if response_text is None:
+            self.logger.error(f"[PHASE3-ANALYSIS-GENERATION] response_text is None for step {step_id}")
+            raise ValueError(f"Step {step_id}: Analysis generation must return findings, got None response")
+        
+        if not isinstance(response_text, str):
+            self.logger.warning(f"[PHASE3-ANALYSIS-GENERATION] response_text is not a string for step {step_id}: {type(response_text)}")
+            if isinstance(response_text, dict):
+                findings = response_text.get("findings")
+                if not isinstance(findings, dict) or not findings:
+                    raise ValueError(
+                        f"Step {step_id}: Analysis generation must return findings, "
+                        f"got: {type(findings)}"
+                    )
+                # Remove requests if present
+                result = {
+                    "step_id": step_id,
+                    "findings": findings,
+                    "insights": str(response_text.get("insights", "")),
+                    "confidence": float(response_text.get("confidence", 0.5)),
+                }
+                if "completion_reason" in response_text:
+                    result["completion_reason"] = str(response_text.get("completion_reason", ""))
+                if "requests" in result:
+                    del result["requests"]
+                return result
+            raise ValueError(f"Step {step_id}: Analysis generation must return findings, got invalid response format")
+        
+        if not response_text.strip():
+            self.logger.warning(f"[PHASE3-ANALYSIS-GENERATION] Empty response_text for step {step_id}")
+            raise ValueError(f"Step {step_id}: Analysis generation must return findings, got empty response")
+        
+        # Try to parse using analysis_generation schema
+        try:
+            parsed = self.client.parse_json_from_stream(iter([response_text]))
+            if parsed is None or not isinstance(parsed, dict):
+                raise ValueError(f"parse_json_from_stream returned {type(parsed).__name__}, expected dict")
+            
+            # Validate: requests field should not exist in schema
+            if "requests" in parsed:
+                self.logger.warning(
+                    f"[PHASE3-ANALYSIS-GENERATION] Step {step_id}: Analysis generation returned requests field, "
+                    f"which is not in the schema. Removing it."
+                )
+                del parsed["requests"]
+            
+            # Ensure step_id is set
+            if "step_id" not in parsed:
+                parsed["step_id"] = step_id
+            elif parsed["step_id"] != step_id:
+                self.logger.warning(
+                    f"[PHASE3-ANALYSIS-GENERATION] Step {step_id}: step_id mismatch in response: {parsed['step_id']}"
+                )
+                parsed["step_id"] = step_id
+            
+            # Validate: must have findings
+            findings = parsed.get("findings")
+            if not isinstance(findings, dict) or not findings:
+                raise ValueError(
+                    f"Step {step_id}: Analysis generation must return findings, "
+                    f"got: {type(findings)}"
+                )
+            
+            # Validate required fields
+            if not findings.get("summary") or not findings.get("article"):
+                raise ValueError(
+                    f"Step {step_id}: Findings must include summary and article. "
+                    f"Got summary={bool(findings.get('summary'))}, article={bool(findings.get('article'))}"
+                )
+            
+            # Ensure required fields exist
+            if "insights" not in parsed:
+                parsed["insights"] = ""
+            elif not isinstance(parsed.get("insights"), str):
+                parsed["insights"] = str(parsed.get("insights", ""))
+            
+            if "confidence" not in parsed:
+                parsed["confidence"] = 0.5
+            elif not isinstance(parsed.get("confidence"), (int, float)):
+                parsed["confidence"] = 0.5
+            
+            # Validate schema
+            schema = load_schema("phase3_execute_analysis_generation", name="output_schema.json")
+            if schema:
+                # Basic validation - check required fields
+                if "step_id" not in parsed:
+                    raise ValueError("Schema validation failed: missing required key 'step_id'")
+                if "findings" not in parsed:
+                    raise ValueError("Schema validation failed: missing required key 'findings'")
+                if "insights" not in parsed:
+                    raise ValueError("Schema validation failed: missing required key 'insights'")
+                if "confidence" not in parsed:
+                    raise ValueError("Schema validation failed: missing required key 'confidence'")
+            
+            return parsed
+            
+        except Exception as e:
+            self.logger.error(f"[PHASE3-ANALYSIS-GENERATION] JSON parsing error for step {step_id}: {e}")
+            # Fallback: try to extract findings from raw response
+            import re
+            try:
+                json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+                    if isinstance(parsed, dict):
+                        # Remove requests if present
+                        if "requests" in parsed:
+                            del parsed["requests"]
+                        # Validate findings
+                        findings = parsed.get("findings")
+                        if not isinstance(findings, dict) or not findings:
+                            raise ValueError(
+                                f"Step {step_id}: Analysis generation must return findings, "
+                                f"got: {type(findings)}"
+                            )
+                        if not findings.get("summary") or not findings.get("article"):
+                            raise ValueError(
+                                f"Step {step_id}: Findings must include summary and article"
+                            )
+                        # Ensure step_id
+                        if "step_id" not in parsed:
+                            parsed["step_id"] = step_id
+                        return parsed
+            except Exception as fallback_err:
+                self.logger.error(
+                    f"[PHASE3-ANALYSIS-GENERATION] Fallback parsing also failed for step {step_id}: {fallback_err}"
+                )
+            
+            # If all parsing fails, raise error (we can't proceed without findings)
+            raise ValueError(
+                f"Step {step_id}: Failed to parse analysis generation response. "
+                f"Expected findings object with summary and article. Error: {str(e)}"
+            )
+
+    def _retrieve_context_for_requests(
+        self,
+        requests: List[Dict[str, Any]],
+        batch_data: Optional[Dict[str, Any]] = None,
+        step_id: Optional[int] = None,
+        allow_vector: bool = True,
+    ) -> str:
+        """Retrieve context for all requests and return as a single string."""
+        if not requests:
+            return ""
+        
+        retriever = RetrievalHandler()
+        
+        # Get batch_data from session if not provided
+        if batch_data is None:
+            try:
+                batch_data = self.session.batch_data  # type: ignore[attr-defined]
+            except AttributeError:
+                batch_data = None
+        
+        if batch_data is None:
+            self.logger.warning("[PHASE3-RETRIEVE] No batch_data available for retrieval")
+            return "(No batch data available for retrieval)"
+        
+        def _normalize_request(req: Dict[str, Any]) -> Dict[str, Any]:
+            """Normalize request to standard format."""
+            normalized = {
+                "id": str(req.get("id") or ""),
+                "request_type": req.get("request_type", req.get("method", "keyword")),
+                "content_type": req.get("content_type") or req.get("type") or "transcript",
+                "source_link_id": req.get("source_link_id") or req.get("source") or "",
+                "method": req.get("method") or "keyword",
+                "parameters": req.get("parameters") or {},
+            }
+            if req.get("source_link_ids"):
+                normalized["source_link_ids"] = req.get("source_link_ids")
+            # Add new request type specific fields
+            if req.get("request_type") == "full_content_item":
+                normalized["content_types"] = req.get("content_types", ["transcript", "comments"])
+            elif req.get("request_type") == "by_marker":
+                normalized["marker_text"] = req.get("marker_text", "")
+                normalized["context_window"] = req.get("context_window", 2000)
+            elif req.get("request_type") == "by_topic":
+                normalized["topic"] = req.get("topic", "")
+                normalized["source_link_ids"] = req.get("source_link_ids", [])
+                normalized["content_types"] = req.get("content_types", ["transcript", "comments"])
+            elif req.get("request_type") == "selective_markers":
+                normalized["marker_types"] = req.get("marker_types", [])
+            return normalized
+        
+        def _req_key(req: Dict[str, Any]) -> str:
+            """Generate a unique key for request deduplication."""
+            import json
+            norm = _normalize_request(req)
+            return json.dumps(norm, sort_keys=True, ensure_ascii=False)
+        
+        def _augment_with_semantic(requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            """Augment requests with semantic search if vector service is available."""
+            if not allow_vector:
+                return requests
+            if not requests or not self._has_vector_service():
+                return requests
+            augmented: List[Dict[str, Any]] = []
+            for req in requests:
+                augmented.append(req)
+                request_type = req.get("request_type") or req.get("method")
+                if request_type in {"semantic", "vector"}:
+                    continue
+                params = req.get("parameters") or {}
+                if not isinstance(params, dict):
+                    params = {}
+                query_candidates: List[str] = []
+                keywords = params.get("keywords")
+                if isinstance(keywords, list):
+                    query_candidates.extend(str(k).strip() for k in keywords if k)
+                elif isinstance(keywords, str):
+                    query_candidates.append(keywords.strip())
+                if params.get("query"):
+                    query_candidates.append(str(params.get("query")).strip())
+                for field in ("marker_text", "topic"):
+                    value = req.get(field)
+                    if value:
+                        query_candidates.append(str(value).strip())
+                # Remove empties
+                query_candidates = [q for q in query_candidates if q]
+                if not query_candidates:
+                    continue
+                semantic_req = dict(req)
+                semantic_req["request_type"] = "semantic"
+                semantic_req["method"] = "semantic"
+                semantic_params = dict(params)
+                semantic_params["query"] = " ".join(query_candidates)
+                semantic_params.setdefault("top_k", self._vector_top_k)
+                semantic_params.setdefault("context_window", params.get("context_window", 500))
+                fallback_keywords = semantic_params.get("fallback_keywords") or query_candidates[:5]
+                if isinstance(fallback_keywords, list):
+                    semantic_params["fallback_keywords"] = [str(k) for k in fallback_keywords if k]
+                else:
+                    semantic_params["fallback_keywords"] = [str(fallback_keywords)]
+                semantic_req["parameters"] = semantic_params
+                source_link_id = semantic_req.get("source_link_id")
+                if source_link_id and not semantic_req.get("source_link_ids"):
+                    semantic_req["source_link_ids"] = [source_link_id]
+                augmented.append(semantic_req)
+            return augmented
+        
+        def _clip(text: str) -> str:
+            """Clip text to max length if needed."""
+            if not isinstance(text, str):
+                text = str(text or "")
+            # Check never_truncate_items flag
+            if self._never_truncate_items:
+                return text
+            # Legacy truncation (only if flag is False)
+            if self._max_chars_per_item and len(text) > self._max_chars_per_item:
+                return text[: self._max_chars_per_item] + "\n[...截断...]"
+            return text
+        
+        def _retrieve_block(req: Dict[str, Any]) -> str:
+            """Retrieve a single block of content for a request."""
+            key = _req_key(req)
+            if self._enable_cache and key in self._retrieval_cache:
+                return self._retrieval_cache[key]
+            try:
+                block = self._handle_retrieval_request(
+                    _normalize_request(req),
+                    retriever,
+                    batch_data,
+                    step_id=step_id,
+                ) or ""
+            except Exception as e:
+                self.logger.warning(f"[PHASE3-RETRIEVE] Error retrieving block for request {req.get('id', 'unknown')}: {e}")
+                block = f"[Retrieval error] {e}"
+            max_chars_override = None
+            if req.get("request_type") == "full_content_item":
+                max_chars_override = self._max_total_followup_chars or max(4000, (self._vector_block_chars or 800) * 4)
+            block = self._limit_block(block, max_chars=max_chars_override)
+            block = _clip(block)
+            if self._enable_cache:
+                self._retrieval_cache[key] = block
+            return block
+        
+        # Normalize and dedupe requests
+        seen_req_keys: set = set()
+        normalized_requests: List[Dict[str, Any]] = []
+        for r in requests:
+            k = _req_key(r)
+            if k not in seen_req_keys:
+                seen_req_keys.add(k)
+                normalized_requests.append(_normalize_request(r))
+        
+        # Augment with semantic if vector is enabled
+        if allow_vector and self._has_vector_service():
+            normalized_requests = _augment_with_semantic(normalized_requests)
+            # Dedupe again after augmentation
+            seen_req_keys.clear()
+            final_requests: List[Dict[str, Any]] = []
+            for r in normalized_requests:
+                k = _req_key(r)
+                if k not in seen_req_keys:
+                    seen_req_keys.add(k)
+                    final_requests.append(r)
+            normalized_requests = final_requests
+        
+        # Retrieve all blocks
+        blocks: List[str] = []
+        total_chars = 0
+        for req in normalized_requests:
+            b = _retrieve_block(req)
+            if b:
+                blocks.append(b)
+                total_chars += len(b)
+                if step_id is not None:
+                    self._increment_step_stat(step_id, "vector_appended_chars", len(b))
+        
+        # Cap total size
+        if self._max_total_followup_chars and total_chars > self._max_total_followup_chars:
+            trimmed = []
+            running = 0
+            for b in blocks:
+                if running + len(b) > self._max_total_followup_chars:
+                    break
+                trimmed.append(b)
+                running += len(b)
+            blocks = trimmed
+        
+        # Join all blocks
+        retrieved_content = "\n\n".join(blocks) if blocks else "(No additional context retrieved)"
+        
+        self.logger.info(
+            f"[PHASE3-RETRIEVE] Step {step_id}: Retrieved {len(blocks)} blocks, "
+            f"total {len(retrieved_content)} chars from {len(requests)} requests"
+        )
+        
+        return retrieved_content
 
     def _convert_missing_context_to_requests(self, missing: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Best-effort conversion of missing_context hints into retrieval requests."""

@@ -1,0 +1,120 @@
+{
+  "type": "object",
+  "properties": {
+    "step_id": {
+      "type": "integer",
+      "description": "Step identifier"
+    },
+    "requests": {
+      "type": "array",
+      "description": "List of content retrieval requests (can be empty if context is sufficient)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Request identifier"
+          },
+          "request_type": {
+            "type": "string",
+            "enum": ["full_content_item", "by_marker", "by_topic", "selective_markers", "keyword", "word_range", "semantic"],
+            "description": "Type of retrieval request"
+          },
+          "source_link_id": {
+            "type": "string",
+            "description": "Content item link_id"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": ["transcript", "comments"],
+            "description": "Content type for legacy requests"
+          },
+          "content_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["transcript", "comments"]
+            },
+            "description": "Content types for full_content_item or by_topic requests"
+          },
+          "marker_text": {
+            "type": "string",
+            "description": "Marker text for by_marker request"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Topic for by_topic request"
+          },
+          "source_link_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of link_ids for by_topic request"
+          },
+          "marker_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Marker types for selective_markers request"
+          },
+          "context_window": {
+            "type": "integer",
+            "description": "Context window size for by_marker request"
+          },
+          "limit_items": {
+            "type": "integer",
+            "description": "Limit items for by_topic request"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for the request"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Priority level for the request"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["keyword", "word_range", "semantic"],
+            "description": "Method for legacy requests"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters for legacy requests or semantic search",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Query text for semantic search"
+              },
+              "top_k": {
+                "type": "integer",
+                "description": "Optional limit for semantic matches"
+              }
+            }
+          },
+          "chunk_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional chunk type filter for semantic retrieval"
+          }
+        },
+        "required": ["id", "request_type"]
+      }
+    },
+    "insights": {
+      "type": "string",
+      "description": "Brief explanation of why more context is needed or not needed (optional)"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Confidence level in context sufficiency (0.0-1.0, optional)"
+    }
+  },
+  "required": ["step_id", "requests"]
+}
+

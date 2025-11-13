@@ -10,7 +10,7 @@ from research.progress_tracker import ProgressTracker
 from research.phases.phase0_prepare import Phase0Prepare
 from research.phases.phase0_5_role_generation import Phase0_5RoleGeneration
 from research.phases.phase1_discover import Phase1Discover
-from research.phases.phase2_synthesize import Phase2Synthesize
+from research.phases.phase2_finalize import Phase2Finalize
 from research.phases.phase3_execute import Phase3Execute
 from research.phases.phase4_synthesize import Phase4Synthesize
 from research.ui.console_interface import ConsoleInterface
@@ -306,8 +306,8 @@ class DeepResearchAgent:
             if cached:
                 return cached
 
-        self.ui.display_header("Phase 2: 综合研究主题")
-        phase2 = Phase2Synthesize(self.client, session, ui=self.ui)
+        self.ui.display_header("Phase 2: 确定研究主题")
+        phase2 = Phase2Finalize(self.client, session, ui=self.ui)
         phase1_result = phase1_artifact.get("phase1_result", {})
         post_phase1_feedback = phase1_artifact.get("post_phase1_feedback") or None
         phase2_result = phase2.execute(
@@ -480,10 +480,10 @@ class DeepResearchAgent:
         report = phase4_result.get("report", "")
         from datetime import datetime
 
-        reports_dir = Path(__file__).parent.parent / "data" / "research" / "reports"
+        reports_dir = Path(__file__).parent.parent / "tests" / "results" / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
 
-        report_file = reports_dir / f"report_{session.session_id}.md"
+        report_file = reports_dir / f"report_{batch_id}_{session.session_id}.md"
         synthesized_goal = phase2_artifact.get("synthesized_goal", {})
         comprehensive_topic = synthesized_goal.get("comprehensive_topic", "")
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 
 interface Phase3Step {
   step_id: number
@@ -50,7 +51,7 @@ const ReportExportPage: React.FC = () => {
         const scratchpad = sessionData.scratchpad || {}
         const phase4 = sessionData.phase_artifacts?.phase4?.data || {}
 
-        const research_objective = metadata.selected_goal || metadata.user_topic || '未提供研究目标'
+        const research_objective = metadata.synthesized_goal?.comprehensive_topic || metadata.selected_goal || metadata.user_topic || '未提供研究目标'
         const final_report =
           phase4.report_content || phase4.final_report || metadata.final_report || '最终报告尚未生成。'
 
@@ -245,7 +246,9 @@ const ReportExportPage: React.FC = () => {
         <section className="mb-12 avoid-break">
           <h2 className="text-xl font-bold text-neutral-800 mb-4">Research Objective</h2>
           <div className="card p-6">
-            <p className="text-neutral-700 whitespace-pre-wrap">{reportData.research_objective}</p>
+            <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+              <ReactMarkdown>{reportData.research_objective}</ReactMarkdown>
+            </div>
           </div>
         </section>
 
@@ -278,7 +281,9 @@ const ReportExportPage: React.FC = () => {
                   {content.summary && (
                     <div className="mb-4">
                       <h4 className="text-sm font-semibold text-neutral-800 mb-2">📝 摘要</h4>
-                      <p className="text-sm text-neutral-700 whitespace-pre-wrap">{content.summary}</p>
+                      <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+                        <ReactMarkdown>{content.summary}</ReactMarkdown>
+                      </div>
                     </div>
                   )}
 
@@ -291,10 +296,12 @@ const ReportExportPage: React.FC = () => {
                           <div key={i} className="bg-neutral-50 rounded p-3">
                             <p className="text-sm font-medium text-neutral-800">{claim.claim}</p>
                             {claim.supporting_evidence && (
-                              <p className="text-xs text-neutral-600 mt-1">
-                                <span className="font-medium">证据支持：</span>
-                                {claim.supporting_evidence}
-                              </p>
+                              <div className="text-xs text-neutral-600 mt-1">
+                                <span className="font-medium">论据：</span>
+                                <div className="prose prose-xs max-w-none prose-p:my-1 prose-strong:text-neutral-600 inline">
+                                  <ReactMarkdown>{claim.supporting_evidence}</ReactMarkdown>
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -314,7 +321,9 @@ const ReportExportPage: React.FC = () => {
                                 {ev.evidence_type}
                               </span>
                             )}
-                            <p className="text-sm text-neutral-700 inline">{ev.description}</p>
+                            <div className="text-sm text-neutral-700 inline prose prose-sm max-w-none prose-p:my-0 prose-strong:text-neutral-700">
+                              <ReactMarkdown>{ev.description}</ReactMarkdown>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -325,7 +334,9 @@ const ReportExportPage: React.FC = () => {
                   {content.article && (
                     <div className="mb-4">
                       <h4 className="text-sm font-semibold text-neutral-800 mb-2">📄 深度文章</h4>
-                      <p className="text-sm text-neutral-700 whitespace-pre-wrap">{content.article}</p>
+                      <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+                        <ReactMarkdown>{content.article}</ReactMarkdown>
+                      </div>
                     </div>
                   )}
 
@@ -342,8 +353,16 @@ const ReportExportPage: React.FC = () => {
                           <div className="space-y-2">
                             {content.fiveWhys.map((item: any, i: number) => (
                               <div key={i} className="text-xs">
-                                <p className="font-medium text-neutral-800">Q: {item.question}</p>
-                                <p className="text-neutral-600">A: {item.answer}</p>
+                                <div className="font-medium text-neutral-800 mb-1">
+                                  Q: <span className="prose prose-xs max-w-none prose-p:my-0 prose-strong:text-neutral-800 inline">
+                                    <ReactMarkdown>{item.question}</ReactMarkdown>
+                                  </span>
+                                </div>
+                                <div className="text-neutral-600">
+                                  A: <span className="prose prose-xs max-w-none prose-p:my-0 prose-strong:text-neutral-600 inline">
+                                    <ReactMarkdown>{item.answer}</ReactMarkdown>
+                                  </span>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -355,7 +374,11 @@ const ReportExportPage: React.FC = () => {
                           <h5 className="text-xs font-semibold text-neutral-700 mb-2">本分析有何假设？</h5>
                           <ul className="list-disc list-inside text-xs text-neutral-600 space-y-1">
                             {content.assumptions.map((item: string, i: number) => (
-                              <li key={i}>{item}</li>
+                              <li key={i}>
+                                <div className="prose prose-xs max-w-none prose-p:my-0 prose-strong:text-neutral-600 prose-li:my-0 inline">
+                                  <ReactMarkdown>{item}</ReactMarkdown>
+                                </div>
+                              </li>
                             ))}
                           </ul>
                         </div>
@@ -366,7 +389,11 @@ const ReportExportPage: React.FC = () => {
                           <h5 className="text-xs font-semibold text-neutral-700 mb-2">有什么未能确定？</h5>
                           <ul className="list-disc list-inside text-xs text-neutral-600 space-y-1">
                             {content.uncertainties.map((item: string, i: number) => (
-                              <li key={i}>{item}</li>
+                              <li key={i}>
+                                <div className="prose prose-xs max-w-none prose-p:my-0 prose-strong:text-neutral-600 prose-li:my-0 inline">
+                                  <ReactMarkdown>{item}</ReactMarkdown>
+                                </div>
+                              </li>
                             ))}
                           </ul>
                         </div>
@@ -378,7 +405,9 @@ const ReportExportPage: React.FC = () => {
                   {content.insights && (
                     <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded p-4">
                       <h4 className="text-sm font-semibold text-neutral-800 mb-2">💡 洞察</h4>
-                      <p className="text-sm text-neutral-700 whitespace-pre-wrap">{content.insights}</p>
+                      <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+                        <ReactMarkdown>{content.insights}</ReactMarkdown>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -391,52 +420,8 @@ const ReportExportPage: React.FC = () => {
         <section className="mb-12">
           <h2 className="text-xl font-bold text-neutral-800 mb-4">Final Report Article</h2>
           <div className="card p-8">
-            <div className="prose prose-sm max-w-none">
-              {reportData.final_report.split('\n').map((line, idx) => {
-                const trimmed = line.trim()
-                
-                if (!trimmed) {
-                  return <div key={idx} className="h-4" />
-                }
-                
-                if (trimmed.startsWith('# ')) {
-                  return (
-                    <h1 key={idx} className="text-2xl font-bold text-neutral-800 mt-6 mb-4">
-                      {trimmed.substring(2)}
-                    </h1>
-                  )
-                }
-                
-                if (trimmed.startsWith('## ')) {
-                  return (
-                    <h2 key={idx} className="text-xl font-semibold text-neutral-800 mt-5 mb-3">
-                      {trimmed.substring(3)}
-                    </h2>
-                  )
-                }
-                
-                if (trimmed.startsWith('### ')) {
-                  return (
-                    <h3 key={idx} className="text-lg font-semibold text-neutral-800 mt-4 mb-2">
-                      {trimmed.substring(4)}
-                    </h3>
-                  )
-                }
-                
-                if (trimmed.startsWith('- ')) {
-                  return (
-                    <li key={idx} className="text-neutral-700 ml-4">
-                      {trimmed.substring(2)}
-                    </li>
-                  )
-                }
-                
-                return (
-                  <p key={idx} className="text-neutral-700 mb-3 whitespace-pre-wrap">
-                    {trimmed}
-                  </p>
-                )
-              })}
+            <div className="prose prose-lg max-w-none prose-headings:text-neutral-800 prose-headings:font-bold prose-p:text-neutral-700 prose-p:leading-relaxed prose-strong:text-neutral-700 prose-ul:text-neutral-700 prose-ol:text-neutral-700 prose-li:text-neutral-700 prose-hr:border-neutral-300">
+              <ReactMarkdown>{reportData.final_report}</ReactMarkdown>
             </div>
           </div>
         </section>

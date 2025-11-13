@@ -18,7 +18,7 @@ const phasePreset = {
   'phase0.5': { title: '阶段 0.5: 角色生成', icon: '🎭', variant: 'compact' as StreamVariant },
   phase0_5: { title: '阶段 0.5: 角色生成', icon: '🎭', variant: 'compact' as StreamVariant },
   phase1: { title: '阶段 1: 发现', icon: '🔍', variant: 'default' as StreamVariant },
-  phase2: { title: '阶段 2: 综合', icon: '🔗', variant: 'default' as StreamVariant },
+  phase2: { title: '阶段 2: 确定', icon: '🔗', variant: 'default' as StreamVariant },
   phase3: { title: '阶段 3: 执行', icon: '⚡', variant: 'expanded' as StreamVariant },
   phase4: { title: '阶段 4: 最终综合', icon: '📝', variant: 'expanded' as StreamVariant },
 }

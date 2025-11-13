@@ -205,31 +205,15 @@ const ResearchAgentPage: React.FC = () => {
           )}
 
           {researchAgentStatus.synthesizedGoal && (
-            <div className="bg-primary-50 p-6 rounded-lg border border-primary-200">
-              <h3 className="text-lg font-semibold text-primary-900 mb-3 shiny-text-hover">
-                研究主题
-              </h3>
-              <p className="text-primary-800 mb-2">
+            <div className="bg-primary-50 p-8 rounded-xl border border-primary-200">
+              <p className="text-2xl text-primary-800 font-semibold leading-relaxed">
                 {researchAgentStatus.synthesizedGoal.comprehensive_topic}
               </p>
               {researchAgentStatus.synthesizedGoal.unifying_theme && (
-                <p className="text-sm text-primary-600 mt-2">
-                  <span className="font-medium">核心主题:</span> {researchAgentStatus.synthesizedGoal.unifying_theme}
+                <p className="text-lg text-primary-700 mt-4 leading-relaxed">
+                  <span className="font-semibold text-primary-900">核心主题:</span> {researchAgentStatus.synthesizedGoal.unifying_theme}
                 </p>
               )}
-              {researchAgentStatus.synthesizedGoal.component_questions &&
-                researchAgentStatus.synthesizedGoal.component_questions.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-sm font-medium text-primary-700 mb-2">
-                      相关问题:
-                    </p>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-primary-600">
-                      {researchAgentStatus.synthesizedGoal.component_questions.map((q, idx) => (
-                        <li key={idx}>{q}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
             </div>
           )}
 

@@ -205,10 +205,16 @@ def _infer_current_phase(
 
 def _extract_topic(metadata: Dict[str, Any]) -> Optional[str]:
     """Extract a human-readable topic/title for the history card."""
+    # Extract comprehensive_topic from synthesized_goal if available
+    synthesized_goal = metadata.get("synthesized_goal")
+    comprehensive_topic = None
+    if isinstance(synthesized_goal, dict):
+        comprehensive_topic = synthesized_goal.get("comprehensive_topic")
+    
     topic_fields = [
+        comprehensive_topic,
         metadata.get("selected_goal"),
         metadata.get("user_topic"),
-        metadata.get("research_role", {}).get("role") if isinstance(metadata.get("research_role"), dict) else None,
         metadata.get("metadata", {}).get("selected_goal") if isinstance(metadata.get("metadata"), dict) else None,
     ]
 

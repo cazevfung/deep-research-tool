@@ -53,6 +53,27 @@ const FinalReportPage: React.FC = () => {
     window.open(`/export/${sessionId}`, '_blank')
   }
 
+  // Filter out metadata paragraphs from report content
+  const filterMetadata = (content: string): string => {
+    if (!content) return content
+    
+    // Remove metadata paragraphs: 研究目标, 生成时间, 批次ID
+    // Also remove the h1 "研究报告" title if it's the first heading
+    let filtered = content
+      // Remove 研究目标 paragraph (markdown format)
+      .replace(/^\*\*研究目标\*\*:\s*[^\n]+\s*\n?/gim, '')
+      // Remove 生成时间 paragraph (markdown format)
+      .replace(/^\*\*生成时间\*\*:\s*[^\n]+\s*\n?/gim, '')
+      // Remove 批次ID paragraph (markdown format)
+      .replace(/^\*\*批次ID\*\*:\s*[^\n]+\s*\n?/gim, '')
+      // Remove standalone h1 "研究报告" title if it's at the beginning
+      .replace(/^#\s+研究报告\s*\n+/m, '')
+      // Remove any empty lines at the start
+      .replace(/^\s*\n+/m, '')
+    
+    return filtered.trim()
+  }
+
   return (
     <div className="max-w-4xl mx-auto h-full flex flex-col">
       <div className="card h-full flex flex-col p-0">
@@ -60,11 +81,6 @@ const FinalReportPage: React.FC = () => {
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-xl font-bold text-neutral-black">研究报告</h2>
-              {finalReport?.generatedAt && (
-                <p className="text-sm text-neutral-500 mt-1">
-                  撰写于: {new Date(finalReport.generatedAt).toLocaleString('zh-CN')}
-                </p>
-              )}
               {reportStale && (
                 <p className="text-sm text-secondary-500 mt-2">
                   提示：最终报告已过期，请重新运行阶段 4 以获取最新结果。
@@ -103,7 +119,7 @@ const FinalReportPage: React.FC = () => {
 
           {!loading && !error && finalReport?.content && (
             <div className="prose prose-lg max-w-none prose-headings:text-neutral-black prose-headings:font-bold prose-p:text-neutral-black prose-p:leading-relaxed prose-strong:text-neutral-black prose-ul:text-neutral-black prose-ol:text-neutral-black prose-li:text-neutral-black prose-hr:border-neutral-300">
-              <ReactMarkdown>{finalReport.content}</ReactMarkdown>
+              <ReactMarkdown>{filterMetadata(finalReport.content)}</ReactMarkdown>
             </div>
           )}
 

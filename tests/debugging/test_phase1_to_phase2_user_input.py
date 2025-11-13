@@ -23,7 +23,7 @@ from loguru import logger
 from research.client import QwenStreamingClient
 from research.session import ResearchSession
 from research.phases.phase1_discover import Phase1Discover
-from research.phases.phase2_synthesize import Phase2Synthesize
+from research.phases.phase2_finalize import Phase2Finalize
 from research.phases.phase4_synthesize import Phase4Synthesize
 
 
@@ -188,7 +188,7 @@ def test_user_input_flow_to_phase2():
     
     # Phase 2: Synthesize with user input
     logger.info("\n[Phase 2] Synthesizing goals with user input...")
-    phase2 = Phase2Synthesize(mock_client, session, ui=mock_ui)
+    phase2 = Phase2Finalize(mock_client, session, ui=mock_ui)
     
     phase2_result = phase2.execute(
         phase1_output=phase1_result,
@@ -309,7 +309,7 @@ def test_user_input_flow_without_input():
     
     # Phase 2: Synthesize without user input
     logger.info("\n[Phase 2] Synthesizing goals WITHOUT user input...")
-    phase2 = Phase2Synthesize(mock_client, session, ui=mock_ui)
+    phase2 = Phase2Finalize(mock_client, session, ui=mock_ui)
     
     phase2_result = phase2.execute(
         phase1_output=phase1_result,

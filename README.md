@@ -1,4 +1,4 @@
-# 【 有料到 】—— A Deep Research Tool
+# 【 有料到 】—— A Deep Insights Tool
 
 “有料到” 是一个智能研究工具，可从多个来源（YouTube、Bilibili、Reddit、贴吧、文章）提取内容，并使用 Qwen3-max 进行深度多阶段研究。
 

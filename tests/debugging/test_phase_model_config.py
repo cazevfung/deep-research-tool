@@ -23,7 +23,7 @@ from research.session import ResearchSession
 from research.phases.phase0_prepare import Phase0Prepare
 from research.phases.phase0_5_role_generation import Phase0_5RoleGeneration
 from research.phases.phase1_discover import Phase1Discover
-from research.phases.phase2_synthesize import Phase2Synthesize
+from research.phases.phase2_finalize import Phase2Finalize
 from research.phases.phase3_execute import Phase3Execute
 from research.phases.phase4_synthesize import Phase4Synthesize
 from core.config import Config
@@ -300,7 +300,7 @@ def test_phase2_model():
     client.stream_and_collect = create_capture_wrapper(original_method, client)
     
     session = ResearchSession()
-    phase = Phase2Synthesize(client, session)
+    phase = Phase2Finalize(client, session)
     
     phase1_output = {
         "suggested_goals": [

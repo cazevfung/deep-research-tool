@@ -171,7 +171,13 @@ def generate_html(session_id: str, output_path: str):
     phase4 = session_data.get("phase_artifacts", {}).get("phase4", {}).get("data", {})
     
     # Extract data
-    research_objective = metadata.get("selected_goal") or metadata.get("user_topic") or "未提供研究目标"
+    synthesized_goal = metadata.get("synthesized_goal", {})
+    research_objective = (
+        synthesized_goal.get("comprehensive_topic") or
+        metadata.get("selected_goal") or 
+        metadata.get("user_topic") or 
+        "未提供研究目标"
+    )
     batch_id = metadata.get("batch_id")
     final_report = phase4.get("report_content") or phase4.get("final_report") or metadata.get("final_report") or "最终报告尚未生成。"
     research_plan = metadata.get("research_plan", [])
@@ -330,7 +336,7 @@ def generate_html(session_id: str, output_path: str):
     <div class="no-print sticky top-0 z-50 bg-white border-b border-neutral-300 shadow-sm">
         <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                {"" if not logo_base64 else f'<img src="{logo_base64}" alt="Deep Research" class="h-16" />'}
+                {"" if not logo_base64 else f'<img src="{logo_base64}" alt="Deep Insights" class="h-16" />'}
             </div>
             <button onclick="window.print()" class="px-6 py-2 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition">
                 打印/导出 PDF
@@ -343,7 +349,7 @@ def generate_html(session_id: str, output_path: str):
         <!-- Cover -->
         <div class="mb-12 avoid-break">
             <div class="flex items-center justify-between mb-8">
-                <h1 class="text-3xl font-bold text-neutral-black">Deep Research Tool</h1>
+                <h1 class="text-3xl font-bold text-neutral-black">Deep Insights Tool</h1>
             </div>
             <div class="border-t-4 border-primary-500 pt-8">
                 <h2 class="text-2xl font-bold text-neutral-800 mb-4">研究报告</h2>
@@ -621,7 +627,7 @@ def generate_html(session_id: str, output_path: str):
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(html, encoding="utf-8")
-    print(f"✅ Generated HTML export: {output.absolute()}")
+    print(f"Generated HTML export: {output.absolute()}")
     print(f"   File size: {output.stat().st_size:,} bytes")
     print(f"   Open in browser and use Ctrl+P (Cmd+P) to print to PDF")
 
@@ -641,14 +647,14 @@ if __name__ == "__main__":
     if not args.upload_only:
         generate_html(args.session_id, args.output)
     elif not Path(args.output).exists():
-        print(f"❌ Error: File not found for upload: {args.output}")
+        print(f"Error: File not found for upload: {args.output}")
         print("   Use --upload without --upload-only to generate first.")
         sys.exit(1)
     
     # Upload if requested
     if args.upload or args.upload_only:
         print("\n" + "="*60)
-        print("📤 Uploading to Alibaba Cloud OSS...")
+        print("Uploading to Alibaba Cloud OSS...")
         print("="*60)
         
         try:
@@ -665,25 +671,25 @@ if __name__ == "__main__":
             
             if result:
                 print("\n" + "="*60)
-                print("✅ HTML Report Successfully Uploaded!")
+                print("HTML Report Successfully Uploaded!")
                 print("="*60)
-                print(f"📎 Public URL: {result['url']}")
-                print(f"📁 Object Key: {result['object_key']}")
-                print(f"📦 Bucket: {result['bucket']}")
-                print(f"💾 Size: {result['size_bytes']:,} bytes ({result['size_bytes']/(1024*1024):.2f} MB)")
-                print("🔓 Access: Public (anyone with link can access)")
-                print("\n💡 Share this link to let others view your research report!")
+                print(f"Public URL: {result['url']}")
+                print(f"Object Key: {result['object_key']}")
+                print(f"Bucket: {result['bucket']}")
+                print(f"Size: {result['size_bytes']:,} bytes ({result['size_bytes']/(1024*1024):.2f} MB)")
+                print("Access: Public (anyone with link can access)")
+                print("\nShare this link to let others view your research report!")
                 print("="*60)
             else:
-                print("\n❌ Upload failed. Check the error messages above.")
+                print("\nUpload failed. Check the error messages above.")
                 sys.exit(1)
                 
         except ImportError as e:
-            print(f"\n❌ Error: Could not import OSSUploadService: {e}")
+            print(f"\nError: Could not import OSSUploadService: {e}")
             print("   Make sure you're running from the project root directory.")
             sys.exit(1)
         except Exception as e:
-            print(f"\n❌ Unexpected error during upload: {e}")
+            print(f"\nUnexpected error during upload: {e}")
             import traceback
             traceback.print_exc()
             sys.exit(1)

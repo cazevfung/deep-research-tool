@@ -29,7 +29,7 @@
 
 **你的任务（只输出JSON）：**
 基于已收集的发现（无需复述发现原文），先生成一个报告大纲（TOC），包含：
-- sections: 数组，每项包含 {"title": 标题, "target_words": 建议字数（500-800）, "purpose": 1句用途说明, "supporting_steps": 数组, "supporting_evidence": 数组, "notes": 字符串}
+- sections: 数组，每项包含 title（标题）、target_words（建议字数500-800）、purpose（1句用途说明）、supporting_steps（数组）、supporting_evidence（数组）、notes（字符串）字段
 - appendices: 必须包含 ["方法与来源说明", "证据附录"]
 
 约束：

@@ -28,7 +28,18 @@ class ConsoleInterface:
             "error": "✗"
         }
         symbol = symbols.get(level, "•")
-        print(f"{symbol} {message}")
+        try:
+            print(f"{symbol} {message}")
+        except UnicodeEncodeError:
+            # Fallback to ASCII-safe symbols for Windows console
+            ascii_symbols = {
+                "info": "[i]",
+                "success": "[+]",
+                "warning": "[!]",
+                "error": "[x]"
+            }
+            symbol = ascii_symbols.get(level, "[*]")
+            print(f"{symbol} {message}")
     
     def display_header(self, title: str):
         """Display a section header."""
@@ -73,6 +84,30 @@ class ConsoleInterface:
             last_stream = next(reversed(self.stream_buffers))
             return self.stream_buffers.get(last_stream, "")
         return self.stream_buffers.get(stream_id, "")
+    
+    def notify_stream_start(self, stream_id: str, stream_phase: str, metadata: Dict[str, Any]):
+        """
+        Notify that a stream has started.
+        
+        Args:
+            stream_id: Unique stream identifier
+            stream_phase: Phase name
+            metadata: Stream metadata
+        """
+        # No-op for console interface
+        pass
+    
+    def notify_stream_end(self, stream_id: str, stream_phase: str, metadata: Dict[str, Any]):
+        """
+        Notify that a stream has ended.
+        
+        Args:
+            stream_id: Unique stream identifier
+            stream_phase: Phase name
+            metadata: Stream metadata
+        """
+        # No-op for console interface
+        pass
     
     def prompt_user(self, prompt: str, choices: Optional[list] = None) -> str:
         """

@@ -1,3 +1,3 @@
-你的出发点是{system_role_description}。{research_role_rationale}
-你的任务是分析提供的研究问题，将它们综合成一个高层次、简洁的研究主题（不超过20个字），同时必须保留所有原始研究问题。综合主题应该概括所有问题的核心，但表述要精炼简短。
+我原本是这么想的，{user_guidance}
 
+而你分析我想法后的出发点是{system_role_description}。{research_role_rationale}

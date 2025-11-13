@@ -1,0 +1,177 @@
+{
+  "type": "object",
+  "properties": {
+    "step_id": {
+      "type": "integer",
+      "description": "Step identifier"
+    },
+    "findings": {
+      "type": "object",
+      "description": "Complete findings object with analysis results",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "Main analysis summary for this step"
+        },
+        "article": {
+          "type": "string",
+          "description": "Comprehensive article placed between headline findings and deep analysis; must fully answer the step goal with overview and in-depth reasoning"
+        },
+        "points_of_interest": {
+          "type": "object",
+          "description": "Structured points of interest extracted from this analysis",
+          "properties": {
+            "key_claims": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "claim": {
+                    "type": "string"
+                  },
+                  "supporting_evidence": {
+                    "type": "string"
+                  },
+                  "relevance": {
+                    "type": "string",
+                    "enum": ["high", "medium", "low"]
+                  }
+                },
+                "required": ["claim"]
+              }
+            },
+            "notable_evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "evidence_type": {
+                    "type": "string",
+                    "enum": ["example", "data", "quote", "anecdote", "fact", "inference"]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "quote": {
+                    "type": "string"
+                  }
+                },
+                "required": ["evidence_type", "description"]
+              }
+            },
+            "controversial_topics": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "topic": {
+                    "type": "string"
+                  },
+                  "opposing_views": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "intensity": {
+                    "type": "string",
+                    "enum": ["high", "medium", "low"]
+                  }
+                },
+                "required": ["topic"]
+              }
+            },
+            "surprising_insights": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "specific_examples": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "example": {
+                    "type": "string"
+                  },
+                  "context": {
+                    "type": "string"
+                  },
+                  "source_indicator": {
+                    "type": "string"
+                  }
+                },
+                "required": ["example"]
+              }
+            },
+            "open_questions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "analysis_details": {
+          "type": "object",
+          "description": "Step-specific detailed analysis (flexible structure)",
+          "properties": {
+            "five_whys": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "integer"
+                  },
+                  "question": {
+                    "type": "string"
+                  },
+                  "answer": {
+                    "type": "string"
+                  }
+                },
+                "required": ["level", "question", "answer"]
+              }
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "uncertainties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of source link IDs referenced in this analysis"
+        }
+      },
+      "required": ["summary", "article"]
+    },
+    "insights": {
+      "type": "string",
+      "description": "Key insight or takeaway from the analysis"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Confidence level in the analysis (0.0-1.0)"
+    },
+    "completion_reason": {
+      "type": "string",
+      "description": "Reason for completion (e.g., '已整合可用证据完成闭环分析')"
+    }
+  },
+  "required": ["step_id", "findings", "insights", "confidence"]
+}
+

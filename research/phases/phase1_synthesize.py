@@ -48,10 +48,9 @@ class Phase1Synthesize(BasePhase):
         from research.prompts.context_formatters import format_research_role_for_context
         research_role = self.session.get_metadata("research_role") if self.session else None
         role_context = format_research_role_for_context(research_role)
-        # Phase 1.5 runs right after Phase 1, but before user feedback is saved
-        # So user_context might not be available yet - check if Phase 1 has completed
-        # For safety, don't include post-Phase-1 feedback in Phase 1.5
-        user_intent = self._get_user_intent_fields(include_post_phase1_feedback=False)
+        # Phase 1.5 runs after Phase 1 and user feedback (if provided)
+        # Include user feedback so Phase 1.5 can adjust/refine questions based on user input
+        user_intent = self._get_user_intent_fields(include_post_phase1_feedback=True)
         
         # Compose messages from externalized prompt templates
         context = {
@@ -62,7 +61,7 @@ class Phase1Synthesize(BasePhase):
             "research_role_display": role_context["research_role_display"],
             "research_role_rationale": role_context["research_role_rationale"],
             "user_guidance": user_intent["user_guidance"],
-            "user_context": user_intent["user_context"],  # Will be empty for Phase 1.5
+            "user_context": user_intent["user_context"],  # Contains user feedback from Phase 1
         }
         messages = compose_messages("phase1_synthesize", context=context)
         

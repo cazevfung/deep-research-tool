@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactMarkdown from 'react-markdown'
 import { Icon } from '../common/Icon'
 import {
   Phase3StepContentModel,
@@ -57,8 +58,10 @@ const KeyClaims: React.FC<{ claims: Phase3StepKeyClaim[] }> = ({ claims }) => {
             <div className="font-medium text-neutral-800 mb-2">{claim.claim}</div>
             {claim.supportingEvidence && (
               <div className="text-sm text-neutral-600 mt-2">
-                <span className="font-medium">证据支持：</span>
-                <span className="whitespace-pre-wrap">{claim.supportingEvidence}</span>
+                <span className="font-medium">论据：</span>
+                <div className="prose prose-sm max-w-none prose-p:my-1 prose-strong:text-neutral-600">
+                  <ReactMarkdown>{claim.supportingEvidence}</ReactMarkdown>
+                </div>
               </div>
             )}
           </div>
@@ -86,7 +89,9 @@ const NotableEvidence: React.FC<{ evidence: Phase3StepEvidence[] }> = ({ evidenc
               <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded mr-3 mt-1">
                 {item.evidenceType}
               </span>
-              <p className="text-neutral-700 flex-1 whitespace-pre-wrap">{item.description}</p>
+              <div className="text-neutral-700 flex-1 prose prose-sm max-w-none prose-p:my-1 prose-strong:text-neutral-700">
+                <ReactMarkdown>{item.description}</ReactMarkdown>
+              </div>
             </div>
           </div>
         ))}
@@ -118,11 +123,15 @@ const FiveWhysTable: React.FC<{ items: FiveWhyItem[] }> = ({ items }) => {
           <tbody>
             {items.map((item, index) => (
               <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-neutral-50'}>
-                <td className="px-4 py-3 text-sm text-neutral-700 border-b border-neutral-200 whitespace-pre-wrap">
-                  {item.question}
+                <td className="px-4 py-3 text-sm text-neutral-700 border-b border-neutral-200">
+                  <div className="prose prose-sm max-w-none prose-p:my-1 prose-strong:text-neutral-700">
+                    <ReactMarkdown>{item.question}</ReactMarkdown>
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-neutral-700 border-b border-neutral-200 whitespace-pre-wrap">
-                  {item.answer}
+                <td className="px-4 py-3 text-sm text-neutral-700 border-b border-neutral-200">
+                  <div className="prose prose-sm max-w-none prose-p:my-1 prose-strong:text-neutral-700">
+                    <ReactMarkdown>{item.answer}</ReactMarkdown>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -154,8 +163,10 @@ const AnalysisSection: React.FC<{ content: Phase3StepContentModel['analysis'] }>
             <h5 className="font-medium text-neutral-800 mb-2">本分析有何假设？</h5>
             <ul className="list-disc list-inside space-y-1 text-neutral-700">
               {content.assumptions.map((item, index) => (
-                <li key={index} className="whitespace-pre-wrap">
-                  {item}
+                <li key={index}>
+                  <div className="prose prose-sm max-w-none prose-p:my-1 prose-strong:text-neutral-700 prose-li:my-0">
+                    <ReactMarkdown>{item}</ReactMarkdown>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -166,8 +177,10 @@ const AnalysisSection: React.FC<{ content: Phase3StepContentModel['analysis'] }>
             <h5 className="font-medium text-neutral-800 mb-2">有什么未能确定？</h5>
             <ul className="list-disc list-inside space-y-1 text-neutral-700">
               {content.uncertainties.map((item, index) => (
-                <li key={index} className="whitespace-pre-wrap">
-                  {item}
+                <li key={index}>
+                  <div className="prose prose-sm max-w-none prose-p:my-1 prose-strong:text-neutral-700 prose-li:my-0">
+                    <ReactMarkdown>{item}</ReactMarkdown>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -192,7 +205,9 @@ const Phase3StepContent: React.FC<Phase3StepContentProps> = ({
           <Icon name="edit" size={18} strokeWidth={2} className="mr-2" />
           摘要
         </h4>
-        <p className="text-neutral-700 whitespace-pre-wrap">{content.summary}</p>
+        <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+          <ReactMarkdown>{content.summary}</ReactMarkdown>
+        </div>
       </div>
     )}
 
@@ -205,7 +220,9 @@ const Phase3StepContent: React.FC<Phase3StepContentProps> = ({
           <Icon name="file" size={18} strokeWidth={2} className="mr-2" />
           深度文章
         </h4>
-        <p className="text-neutral-700 whitespace-pre-wrap">{content.article}</p>
+        <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+          <ReactMarkdown>{content.article}</ReactMarkdown>
+        </div>
       </div>
     )}
 
@@ -217,7 +234,9 @@ const Phase3StepContent: React.FC<Phase3StepContentProps> = ({
           <Icon name="lightbulb" size={18} strokeWidth={2} className="mr-2" />
           洞察
         </h4>
-        <p className="text-neutral-700 whitespace-pre-wrap">{content.insights}</p>
+        <div className="prose prose-sm max-w-none prose-p:text-neutral-700 prose-p:my-2 prose-strong:text-neutral-700">
+          <ReactMarkdown>{content.insights}</ReactMarkdown>
+        </div>
       </div>
     )}
 
