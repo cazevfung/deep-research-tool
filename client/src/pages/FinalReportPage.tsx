@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useWorkflowStore } from '../stores/workflowStore'
+import { useUiStore } from '../stores/uiStore'
 import { apiService } from '../services/api'
 import ReactMarkdown from 'react-markdown'
 
 const FinalReportPage: React.FC = () => {
-  const navigate = useNavigate()
   const { batchId, finalReport, setFinalReport, reportStale, sessionId } = useWorkflowStore()
+  const { addNotification } = useUiStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (finalReport?.content) {
@@ -45,12 +46,44 @@ const FinalReportPage: React.FC = () => {
     fetchReport()
   }, [batchId, finalReport, setFinalReport])
 
-  const handleExport = () => {
-    if (!sessionId) {
+  const handleExport = async () => {
+    // Try to get sessionId from store first, then from report metadata
+    let currentSessionId = sessionId
+    
+    if (!currentSessionId && finalReport) {
+      // Try to get from report metadata if available
+      try {
+        const reportData = await apiService.getFinalReport(batchId!)
+        currentSessionId = reportData.metadata.sessionId || null
+      } catch (err) {
+        console.error('Failed to fetch report for sessionId:', err)
+      }
+    }
+    
+    if (!currentSessionId) {
+      addNotification('无法找到会话ID，无法导出', 'error')
       return
     }
-    // Open export page in new tab
-    window.open(`/export/${sessionId}`, '_blank')
+    
+    setExporting(true)
+    try {
+      const result = await apiService.exportSessionHtml(currentSessionId)
+      
+      // Open the HTML file in a new window
+      window.open(result.file_url, '_blank')
+      
+      if (result.cached) {
+        addNotification('已打开导出的HTML文件（使用缓存）', 'success')
+      } else {
+        addNotification('已导出并打开HTML文件', 'success')
+      }
+    } catch (err: any) {
+      console.error('Failed to export HTML:', err)
+      const errorMessage = err.response?.data?.detail || err.message || '导出失败，请重试'
+      addNotification(errorMessage, 'error')
+    } finally {
+      setExporting(false)
+    }
   }
 
   // Filter out metadata paragraphs from report content
@@ -68,6 +101,10 @@ const FinalReportPage: React.FC = () => {
       .replace(/^\*\*批次ID\*\*:\s*[^\n]+\s*\n?/gim, '')
       // Remove standalone h1 "研究报告" title if it's at the beginning
       .replace(/^#\s+研究报告\s*\n+/m, '')
+      // Remove first horizontal rule (--- or *** or <hr>)
+      .replace(/^---\s*\n+/m, '')
+      .replace(/^\*\*\*\s*\n+/m, '')
+      .replace(/^<hr>\s*\n*/m, '')
       // Remove any empty lines at the start
       .replace(/^\s*\n+/m, '')
     
@@ -91,10 +128,10 @@ const FinalReportPage: React.FC = () => {
             <button
               type="button"
               onClick={handleExport}
-              disabled={!sessionId}
+              disabled={!sessionId || exporting}
               className="inline-flex items-center justify-center rounded-full border border-primary-200 bg-primary-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-200 disabled:text-neutral-500"
             >
-              导出 PDF
+              {exporting ? '导出中...' : '导出 PDF'}
             </button>
           </div>
         </div>
@@ -118,7 +155,7 @@ const FinalReportPage: React.FC = () => {
           )}
 
           {!loading && !error && finalReport?.content && (
-            <div className="prose prose-lg max-w-none prose-headings:text-neutral-black prose-headings:font-bold prose-p:text-neutral-black prose-p:leading-relaxed prose-strong:text-neutral-black prose-ul:text-neutral-black prose-ol:text-neutral-black prose-li:text-neutral-black prose-hr:border-neutral-300">
+            <div className="prose prose-lg max-w-none prose-headings:text-neutral-black prose-headings:font-bold prose-p:text-neutral-black prose-p:leading-relaxed prose-strong:text-neutral-black prose-ul:text-neutral-black prose-ol:text-neutral-black prose-li:text-neutral-black prose-hr:border-neutral-300 pt-4">
               <ReactMarkdown>{filterMetadata(finalReport.content)}</ReactMarkdown>
             </div>
           )}

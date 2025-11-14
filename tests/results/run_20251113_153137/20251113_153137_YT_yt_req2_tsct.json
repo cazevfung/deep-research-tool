@@ -1,0 +1,60 @@
+{
+  "success": true,
+  "video_id": "1u6IfvGvx7Y",
+  "url": "https://www.youtube.com/watch?v=1u6IfvGvx7Y",
+  "content": "This is an emergency distress call broadcasting from the planet Gaia. If you're receiving this, please respond immediately. Hey, can I sniff you? Uh, that's definitely not possible or appropriate. This is a distress call, not whatever that was. I'm Stella. Who am I talking to? Yeah, sorry about that. Can I sniff you later? Seriously, that's not okay. Can we please stick to the basics here? I need to know who I'm actually talking to. So, what's your name? And how did you manage to pick up my distress signal? You're right. I didn't introduce myself. My name is Mustache. I accidentally stumbled upon this signal. Do you think this device can transmit smells? You know, for sniffing mustache, seriously, cut it out with the sniffing comments. That's not how this works.",
+  "title": "AI NPCs will change games",
+  "author": "MustacheAI",
+  "publish_date": "",
+  "source": "YouTube",
+  "language": "auto",
+  "word_count": 133,
+  "extraction_method": "youtube",
+  "extraction_timestamp": "2025-11-13T23:32:42.551616",
+  "batch_id": "20251113_153137",
+  "link_id": "yt_req2",
+  "error": null,
+  "summary": {
+    "transcript_summary": {
+      "key_facts": [
+        "Stella is broadcasting a distress call from the planet Gaia.",
+        "The distress signal was picked up by Mustache.",
+        "Mustache accidentally stumbled upon the distress signal.",
+        "Stella requested identification and confirmation of contact.",
+        "The device in question is capable of transmitting distress signals.",
+        "Stella rejected attempts to sniff as inappropriate.",
+        "Mustache expressed curiosity about smell transmission via the device.",
+        "Stella emphasized the need to stick to basic communication.",
+        "The conversation occurred during an emergency broadcast.",
+        "Mustache did not initiate the contact but received the signal unexpectedly."
+      ],
+      "key_opinions": [
+        "Stella believes the sniffing comments are unacceptable.",
+        "Stella thinks the situation requires serious attention.",
+        "Mustache seems amused by the idea of smell transmission.",
+        "Stella feels the interaction is being derailed by inappropriate behavior.",
+        "Mustache appears to treat the emergency with casual disregard."
+      ],
+      "key_datapoints": [
+        "The distress signal originated from planet Gaia.",
+        "Mustache received the signal by accident.",
+        "No specific time or duration for the broadcast was mentioned.",
+        "The device can transmit distress signals across space.",
+        "No numerical data on signal strength or distance was provided."
+      ],
+      "topic_areas": [
+        "Emergency broadcast",
+        "Interpersonal boundaries",
+        "Signal reception",
+        "Device functionality",
+        "Unwanted advances",
+        "Communication protocol"
+      ],
+      "word_count": 133,
+      "total_markers": 20
+    },
+    "comments_summary": {},
+    "created_at": "2025-11-13T23:52:23.818076",
+    "model_used": "qwen-flash"
+  }
+}

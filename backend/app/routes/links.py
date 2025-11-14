@@ -45,12 +45,14 @@ def get_progress_service() -> ProgressService:
 
 class FormatLinksRequest(BaseModel):
     urls: List[str]
+    session_id: Optional[str] = None  # NEW field
 
 
 class FormatLinksResponse(BaseModel):
     batch_id: str
     items: List[dict]
     total: int
+    session_id: Optional[str] = None  # Return session_id for frontend
 
 
 @router.post("/format", response_model=FormatLinksResponse)
@@ -59,10 +61,10 @@ async def format_links(request: FormatLinksRequest):
     Format URLs and create batch.
     
     Args:
-        request: Request with list of URLs
+        request: Request with list of URLs and optional session_id
         
     Returns:
-        Batch ID and formatted items
+        Batch ID, formatted items, and session_id
     """
     try:
         link_formatter_service = get_link_formatter_service()
@@ -76,12 +78,43 @@ async def format_links(request: FormatLinksRequest):
         if not request.urls:
             raise HTTPException(status_code=400, detail="No URLs provided")
         
+        # Handle session_id
+        session_id = request.session_id
+        session = None
+        
+        if session_id:
+            try:
+                from research.session import ResearchSession
+                session = ResearchSession.load(session_id)
+                logger.info(f"Using existing session: {session_id}")
+            except FileNotFoundError:
+                logger.warning(f"Session not found: {session_id}, creating new")
+                from research.session import ResearchSession
+                session = ResearchSession()
+                session_id = session.session_id
+        else:
+            # Fallback: create new session (backward compatibility)
+            from research.session import ResearchSession
+            session = ResearchSession()
+            session_id = session.session_id
+            logger.info("No session_id provided, created new session")
+        
         logger.info(f"Formatting {len(request.urls)} URLs")
         result = link_formatter_service.format_links(request.urls)
         
-        logger.info(f"Formatted {result['total']} links, batch_id: {result['batch_id']}")
+        # Store batch_id in session
+        if session:
+            session.set_metadata("batch_id", result['batch_id'])
+            session.save()
         
-        return FormatLinksResponse(**result)
+        logger.info(f"Formatted {result['total']} links, batch_id: {result['batch_id']}, session_id: {session_id}")
+        
+        return FormatLinksResponse(
+            batch_id=result['batch_id'],
+            items=result['items'],
+            total=result['total'],
+            session_id=session_id
+        )
         
     except HTTPException:
         raise

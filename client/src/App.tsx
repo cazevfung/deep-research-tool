@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRef, useEffect } from 'react'
 import Layout from './components/layout/Layout'
+import UserGuidancePage from './pages/UserGuidancePage'
 import LinkInputPage from './pages/LinkInputPage'
 import ScrapingProgressPage from './pages/ScrapingProgressPage'
 import ResearchAgentPage from './pages/ResearchAgentPage'
@@ -13,11 +14,12 @@ import { useProgressNavigation } from './hooks/useProgressNavigation'
 
 // Define route order for animation direction
 const ROUTE_ORDER: Record<string, number> = {
-  '/': 1,
-  '/scraping': 2,
-  '/research': 3,
-  '/phase3': 4,
-  '/report': 5,
+  '/': 1,           // UserGuidancePage (NEW)
+  '/links': 2,      // LinkInputPage (moved from '/')
+  '/scraping': 3,
+  '/research': 4,
+  '/phase3': 5,
+  '/report': 6,
   '/history': 0, // History is not part of the workflow
 }
 
@@ -81,7 +83,23 @@ function AnimatedRoutes() {
           path="/"
           element={
             <motion.div
-              key="page-1"
+              key="page-guidance"
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={getVariants()}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="h-full"
+            >
+              <UserGuidancePage />
+            </motion.div>
+          }
+        />
+        <Route
+          path="/links"
+          element={
+            <motion.div
+              key="page-links"
               initial="initial"
               animate="animate"
               exit="exit"

@@ -458,7 +458,6 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
           synthesizedGoal: null,
           summarizationProgress: null,
           conversationMessages: [],
-          conversationMessages: [],
         },
         phase3Steps: [],
         currentStepId: null,

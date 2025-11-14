@@ -570,9 +570,52 @@ async def resume_session(batch_id: str, background_tasks: BackgroundTasks) -> Di
         ) from exc
 
 
+@router.delete("/session/{session_id}")
+async def delete_session_by_id(session_id: str) -> Dict[str, Any]:
+    """Delete stored session and associated artifacts by session ID."""
+    try:
+        # Find session by session_id (more precise than batch_id)
+        sessions_dir = project_root / "data" / "research" / "sessions"
+        session_file = sessions_dir / f"session_{session_id}.json"
+        
+        if not session_file.exists():
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Load session to get batch_id for response
+        try:
+            with open(session_file, 'r', encoding='utf-8') as f:
+                session_data = json.load(f)
+            batch_id = session_data.get("metadata", {}).get("batch_id")
+        except Exception:
+            batch_id = None
+
+        try:
+            session_file.unlink()
+            logger.info(f"Deleted session file {session_file}")
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.error(f"Failed to delete session file {session_file}: {exc}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete session file: {exc}") from exc
+
+        # Remove associated report if present
+        _remove_associated_report(session_id)
+
+        return {
+            "batch_id": batch_id,
+            "session_id": session_id,
+            "status": "deleted",
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Failed to delete session {session_id}: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete session {session_id}: {exc}"
+        ) from exc
+
+
 @router.delete("/{batch_id}")
 async def delete_session(batch_id: str) -> Dict[str, Any]:
-    """Delete stored session and associated artifacts for a batch."""
+    """Delete stored session and associated artifacts for a batch (DEPRECATED - use /session/{session_id} instead)."""
     try:
         record = _find_session_by_batch(batch_id)
         if not record:

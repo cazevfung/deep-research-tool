@@ -768,7 +768,7 @@ def stop_backend_server(port=None):
         print_warning(f"Error stopping backend server: {e}")
         return False
 
-def check_backend_health(port=None, timeout=30):
+def check_backend_health(port=None, timeout=60):
     """Check if backend server is running and LinkFormatterService is initialized."""
     if port is None:
         port = DEFAULT_BACKEND_PORT
@@ -831,33 +831,10 @@ def start_servers(start_backend=True, start_frontend=True, auto_open_browser=Tru
     
     processes = []
     frontend_port = DEFAULT_FRONTEND_PORT  # Initialize frontend port
-    backend_port = DEFAULT_BACKEND_PORT  # Initialize backend port
-    
-    # Stop existing backend server if restart requested
-    if start_backend and restart_backend:
-        print_info("Stopping existing backend server...")
-        stop_backend_server()
-        time.sleep(2)  # Give it time to fully stop
+    backend_port = 3001  # Always use port 3001
     
     # Start backend server
     if start_backend:
-        # Write initial port info file with default ports (will be updated when backend starts)
-        write_port_info(DEFAULT_BACKEND_PORT, DEFAULT_FRONTEND_PORT)
-        
-        if check_port_in_use(backend_port):
-            print_warning(f"Port {backend_port} is already in use")
-            print_info("Finding an available backend port to use instead...")
-            available_backend_port = find_available_port(backend_port + 1, max_attempts=50)
-            if available_backend_port:
-                backend_port = available_backend_port
-                print_success(f"Found available backend port: {backend_port}")
-                print_info(f"Starting backend server on port {backend_port} instead of {DEFAULT_BACKEND_PORT}")
-                # Update port info immediately with the new port
-                write_port_info(backend_port, DEFAULT_FRONTEND_PORT)
-            else:
-                print_error(f"Could not find an available backend port (tried ports {backend_port + 1}-{backend_port + 50})")
-                print_info("Please manually stop the process using the default backend port and try again")
-                return processes
         backend_script = backend_dir / 'run_server.py'
         if not backend_script.exists():
             print_error(f"Backend server script not found: {backend_script}")
@@ -866,44 +843,32 @@ def start_servers(start_backend=True, start_frontend=True, auto_open_browser=Tru
             print_info(f"Backend will be available at: http://localhost:{backend_port}")
             
             if platform.system() == 'Windows':
-                # Windows: Start in a dedicated console window so logs are visible
+                # Windows: Start in a dedicated console window
                 try:
-                    backend_env = os.environ.copy()
-                    backend_env['BACKEND_PORT_OVERRIDE'] = str(backend_port)
-                    creation_flags = 0
-                    if hasattr(subprocess, 'CREATE_NEW_CONSOLE'):
-                        creation_flags = subprocess.CREATE_NEW_CONSOLE
+                    # Always use py command and port 3001 - no port checking, no cleanup
+                    window_title = f"Research Tool - Backend Server (Port {backend_port})"
+                    cmd_line = f'title {window_title} && py run_server.py --port {backend_port}'
                     process = subprocess.Popen(
-                        [sys.executable, str(backend_script), '--port', str(backend_port)],
+                        cmd_line,
                         cwd=str(backend_dir),
-                        creationflags=creation_flags,
-                        env=backend_env
+                        shell=True,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0
                     )
                     processes.append(process)
                     print_success("Backend server started")
+                    print_info(f"Command: py run_server.py --port {backend_port}")
+                    print_info(f"Backend server window title: '{window_title}'")
+                    print_info("Look for this window in your taskbar or press Alt+Tab to find it")
                     
                     # Write port info to file for frontend to read
                     write_port_info(backend_port, frontend_port)
                     
                     # Wait a bit then check health
                     print_info("Waiting for backend server to start...")
-                    print_info("Monitoring startup logs for LinkFormatterService initialization...")
-                    time.sleep(3)
+                    time.sleep(5)
                     
-                    # Verify which port the backend actually started on
-                    actual_backend_port = backend_port
-                    for check_port in [backend_port, DEFAULT_BACKEND_PORT]:
-                        if check_backend_health(port=check_port, timeout=5):
-                            actual_backend_port = check_port
-                            if check_port != backend_port:
-                                print_warning(f"Backend is actually running on port {actual_backend_port}, not {backend_port}")
-                                backend_port = actual_backend_port
-                                # Update port info file with actual port
-                                write_port_info(backend_port, frontend_port)
-                            break
-                    
-                    # Check backend health and LinkFormatterService initialization
-                    if check_backend_health(port=backend_port, timeout=30):
+                    # Check backend health
+                    if check_backend_health(port=backend_port, timeout=60):
                         print_success("✓ Backend server is ready!")
                         print_success("✓ LinkFormatterService initialized successfully")
                     else:
@@ -916,41 +881,26 @@ def start_servers(start_backend=True, start_frontend=True, auto_open_browser=Tru
             else:
                 # Unix: Start in background
                 try:
-                    backend_env = os.environ.copy()
-                    backend_env['BACKEND_PORT_OVERRIDE'] = str(backend_port)
                     process = subprocess.Popen(
-                        [sys.executable, str(backend_script), '--port', str(backend_port)],
+                        ['python3', str(backend_script), '--port', str(backend_port)],
                         cwd=str(backend_dir),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
-                        start_new_session=True,
-                        env=backend_env
+                        start_new_session=True
                     )
                     processes.append(process)
                     print_success("Backend server started in background")
+                    print_info(f"Command: python3 run_server.py --port {backend_port}")
                     
                     # Write port info to file for frontend to read
                     write_port_info(backend_port, frontend_port)
                     
                     # Wait a bit then check health
                     print_info("Waiting for backend server to start...")
-                    print_info("Monitoring startup logs for LinkFormatterService initialization...")
-                    time.sleep(3)
+                    time.sleep(5)
                     
-                    # Verify which port the backend actually started on
-                    actual_backend_port = backend_port
-                    for check_port in [backend_port, DEFAULT_BACKEND_PORT]:
-                        if check_backend_health(port=check_port, timeout=5):
-                            actual_backend_port = check_port
-                            if check_port != backend_port:
-                                print_warning(f"Backend is actually running on port {actual_backend_port}, not {backend_port}")
-                                backend_port = actual_backend_port
-                                # Update port info file with actual port
-                                write_port_info(backend_port, frontend_port)
-                            break
-                    
-                    # Check backend health and LinkFormatterService initialization
-                    if check_backend_health(port=backend_port, timeout=15):
+                    # Check backend health
+                    if check_backend_health(port=backend_port, timeout=60):
                         print_success("✓ Backend server is ready!")
                         print_success("✓ LinkFormatterService initialized successfully")
                     else:

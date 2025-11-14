@@ -22,7 +22,9 @@ const LinkInputPage: React.FC = () => {
     scrapingStatus,
     researchAgentStatus,
     phase3Steps,
-    finalReport
+    finalReport,
+    sessionId,  // Get session_id from store
+    setSessionId  // Set session_id if returned from backend
   } = useWorkflowStore()
   const { addNotification } = useUiStore()
 
@@ -144,13 +146,18 @@ const LinkInputPage: React.FC = () => {
         return
       }
       
-      // Format links and create batch
+      // Format links and create batch (using existing session_id)
       const startTime = Date.now()
       let response
       try {
-        response = await apiService.formatLinks(urlList)
+        response = await apiService.formatLinks(urlList, sessionId || undefined)
         const duration = Date.now() - startTime
         console.log(`Format links response received in ${duration}ms:`, response)
+        
+        // Update session_id if returned from backend (for backward compatibility)
+        if (response.session_id && !sessionId) {
+          setSessionId(response.session_id)
+        }
       } catch (error: any) {
         const duration = Date.now() - startTime
         console.error(`Format links failed after ${duration}ms:`, error)

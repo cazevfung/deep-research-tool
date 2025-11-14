@@ -2,7 +2,9 @@
 import json
 import sys
 import re
+import os
 from pathlib import Path
+from typing import Tuple
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -85,40 +87,86 @@ def get_research_title(session_file: Path) -> str:
     return "研究报告"
 
 
-def export_session_html(session_id: str, output_dir: str = "downloads"):
-    """Export session to HTML with filename based on research title."""
-    session_file = Path(__file__).parent.parent / "data" / "research" / "sessions" / f"session_{session_id}.json"
+def export_session_html(session_id: str, output_dir: str = "downloads", force_regenerate: bool = False) -> Tuple[Path, bool]:
+    """
+    Export session to HTML with filename based on research title.
+    
+    Args:
+        session_id: The session ID to export
+        output_dir: Directory to save the HTML file (default: "downloads")
+        force_regenerate: If True, regenerate even if cached file exists
+    
+    Returns:
+        Tuple of (Path to HTML file, was_cached: bool)
+        was_cached is True if existing file was used, False if new file was generated
+    
+    Caching:
+        - Checks if HTML file already exists
+        - Regenerates only if session JSON is newer than HTML file
+        - Use force_regenerate=True to bypass cache
+    """
+    project_root = Path(__file__).parent.parent
+    session_file = project_root / "data" / "research" / "sessions" / f"session_{session_id}.json"
     
     if not session_file.exists():
-        print(f"Error: Session file not found: {session_file}")
-        sys.exit(1)
+        raise FileNotFoundError(f"Session file not found: {session_file}")
     
     # Get research title
     research_title = get_research_title(session_file)
-    print(f"Research Title: {research_title}")
     
     # Sanitize title for filename
     filename_title = sanitize_filename(research_title)
-    output_filename = f"{filename_title}.html"
-    output_path = Path(output_dir) / output_filename
+    output_filename = f"有料到 - {filename_title}.html"
     
-    print(f"Output file: {output_path}")
+    # Ensure output_dir is absolute
+    if not Path(output_dir).is_absolute():
+        output_dir = project_root / output_dir
+    else:
+        output_dir = Path(output_dir)
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / output_filename
+    
+    # Check if file already exists and is up-to-date
+    was_cached = False
+    if not force_regenerate and output_path.exists():
+        # Compare modification times
+        session_mtime = os.path.getmtime(session_file)
+        html_mtime = os.path.getmtime(output_path)
+        
+        # If session is newer, regenerate; otherwise use cached
+        if html_mtime >= session_mtime:
+            was_cached = True
+            print(f"Using cached HTML file: {output_path}")
+            return (output_path, was_cached)
+        else:
+            print(f"Session file is newer, regenerating HTML...")
     
     # Generate HTML
+    print(f"Generating HTML file: {output_path}")
     generate_html(session_id, str(output_path))
     
-    print(f"\nExport complete!")
-    print(f"   File: {output_path.absolute()}")
+    print(f"Export complete! File: {output_path.absolute()}")
+    return (output_path, was_cached)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python export_session_html.py <session_id> [output_dir]")
+        print("Usage: python export_session_html.py <session_id> [output_dir] [--force]")
         print("Example: python export_session_html.py 20251113_181642")
         sys.exit(1)
     
     session_id = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "downloads"
+    output_dir = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith('--') else "downloads"
+    force_regenerate = '--force' in sys.argv
     
-    export_session_html(session_id, output_dir)
+    try:
+        output_path, was_cached = export_session_html(session_id, output_dir, force_regenerate)
+        if was_cached:
+            print(f"\n✓ Used cached file: {output_path}")
+        else:
+            print(f"\n✓ Generated new file: {output_path}")
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 

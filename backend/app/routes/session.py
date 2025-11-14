@@ -6,6 +6,8 @@ import sys
 import time
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from loguru import logger
 
 # Add project root to path
@@ -13,6 +15,15 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 router = APIRouter()
+
+
+class CreateSessionRequest(BaseModel):
+    user_guidance: str  # REQUIRED
+
+
+class CreateSessionResponse(BaseModel):
+    session_id: str
+    created_at: Optional[str] = None
 
 def _safe_load_json_file(file_path: Path, max_retries: int = 3, retry_delay: float = 0.1):
     """
@@ -47,6 +58,42 @@ def _safe_load_json_file(file_path: Path, max_retries: int = 3, retry_delay: flo
                 raise IOError(f"Failed to read file after {max_retries} attempts: {str(e)}") from last_error
     
     raise IOError(f"Failed to read file: {str(last_error)}")
+
+@router.post("/create", response_model=CreateSessionResponse)
+async def create_session(request: CreateSessionRequest):
+    """Create a new research session with required user guidance."""
+    try:
+        from research.session import ResearchSession
+        
+        user_guidance = request.user_guidance
+        
+        # Validate: user_guidance is required
+        if not user_guidance or not user_guidance.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="user_guidance is required and cannot be empty"
+            )
+        
+        # Create new session
+        session = ResearchSession()
+        
+        # Store user_guidance in session metadata (required, so always store)
+        session.set_metadata("phase_feedback_pre_role", user_guidance.strip())
+        logger.info(f"Stored user_guidance in new session {session.session_id}")
+        
+        # Save session
+        session.save()
+        
+        return CreateSessionResponse(
+            session_id=session.session_id,
+            created_at=session.metadata.get("created_at")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create session: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/{session_id}")
 async def get_session(session_id: str):

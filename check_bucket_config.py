@@ -63,3 +63,4 @@ print("1. Check console: Bucket -> Basic Settings -> Hotlink Protection")
 print("2. Or: Bucket -> Access Control -> Anti-Leech")
 print("3. Look for 'Force Download' or similar option and disable it")
 
+

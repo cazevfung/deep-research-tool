@@ -43,7 +43,8 @@ const ScrapingProgressPage: React.FC = () => {
   const userScrollTimeoutRef = useRef<number | null>(null)
   
   // Use refs to track initialization and prevent duplicate checks
-  const hasInitializedRef = useRef(false)
+  // Track which batchId was initialized to prevent stale state
+  const hasInitializedRef = useRef<string | null>(null)
   const checkInProgressRef = useRef(false)
 
   // Connect WebSocket when component mounts (always connect for updates)
@@ -159,8 +160,8 @@ const ScrapingProgressPage: React.FC = () => {
         return
       }
       
-      // If already initialized for this batchId, skip
-      if (hasInitializedRef.current) {
+      // If already initialized for THIS specific batchId, skip
+      if (hasInitializedRef.current === batchId) {
         console.log('Already initialized for this batchId, skipping')
         return
       }
@@ -234,7 +235,7 @@ const ScrapingProgressPage: React.FC = () => {
               }
             }
             
-            hasInitializedRef.current = true
+            hasInitializedRef.current = batchId
             checkInProgressRef.current = false
             setIsCheckingStatus(false)
             return // Skip workflow status check - report proves it's done
@@ -262,19 +263,32 @@ const ScrapingProgressPage: React.FC = () => {
           console.log('Workflow status:', currentStatus)
           
           if (status.status === 'running') {
-            // Workflow already running, just connect WebSocket (already done above)
-            console.log('Workflow already running, connecting to updates...')
-            setWorkflowStarted(true)
-            hasInitializedRef.current = true
-            checkInProgressRef.current = false
-            setIsCheckingStatus(false)
-            return
+            // CRITICAL FIX: Backend reports "running" if WebSocket connection exists,
+            // but the actual background task might not have started yet.
+            // Check if there's actual progress before trusting "running" status.
+            const hasActualProgress = scrapingStatus.expectedTotal > 0 || scrapingStatus.items.length > 0 || scrapingStatus.total > 0
+            
+            if (hasActualProgress) {
+              // Workflow is actually running with progress, just connect WebSocket
+              console.log('Workflow already running with progress, connecting to updates...')
+              setWorkflowStarted(true)
+              hasInitializedRef.current = batchId
+              checkInProgressRef.current = false
+              setIsCheckingStatus(false)
+              return
+            } else {
+              // Status says "running" but no progress - likely just WebSocket connection
+              // The background task probably didn't start. Force start it.
+              console.warn('⚠️ Workflow status is "running" but no progress detected. This likely means only WebSocket is connected but background task never started. Attempting to start workflow...')
+              // Don't return - fall through to start workflow logic below
+              currentStatus = null // Reset status to force start
+            }
           }
           
           if (status.status === 'cancelled') {
             // Workflow was cancelled, don't restart
             console.log('Workflow was cancelled, not restarting')
-            hasInitializedRef.current = true
+            hasInitializedRef.current = batchId
             checkInProgressRef.current = false
             setIsCheckingStatus(false)
             return
@@ -285,15 +299,16 @@ const ScrapingProgressPage: React.FC = () => {
           console.log('Could not get workflow status, will try to start:', error?.response?.status, error?.message)
         }
 
-        // Only start if workflow hasn't been started for this batchId and status is not running
-        if (!workflowStarted && currentStatus !== 'running') {
-          console.log('Starting new workflow for batchId:', batchId)
+        // Always verify backend status - don't rely solely on frontend flag
+        // Start workflow if backend says it's not running (regardless of frontend flag)
+        if (currentStatus !== 'running') {
+          console.log('Starting new workflow for batchId:', batchId, '(backend status:', currentStatus || 'unknown', ')')
           try {
             const response = await apiService.startWorkflow(batchId)
             console.log('Workflow start response:', response)
             setWorkflowStarted(true)
             setWorkflowStatus('running')
-            hasInitializedRef.current = true
+            hasInitializedRef.current = batchId
           } catch (error: any) {
             console.error('Failed to start workflow:', error)
             console.error('Error details:', error?.response?.data, error?.response?.status)
@@ -302,12 +317,17 @@ const ScrapingProgressPage: React.FC = () => {
               console.log('Workflow already exists, marking as started')
               setWorkflowStarted(true)
               setWorkflowStatus('running')
-              hasInitializedRef.current = true
+              hasInitializedRef.current = batchId
+            } else {
+              // If start failed for other reasons, don't mark as initialized
+              // This allows retry on next mount
+              console.warn('Workflow start failed, will retry on next mount if needed')
             }
           }
         } else {
-          console.log('Workflow already started or running, skipping start')
-          hasInitializedRef.current = true
+          console.log('Workflow already running according to backend, skipping start')
+          setWorkflowStarted(true)
+          hasInitializedRef.current = batchId
         }
       } catch (error: any) {
         console.error('Error checking/starting workflow:', error)
@@ -318,21 +338,17 @@ const ScrapingProgressPage: React.FC = () => {
       }
     }
 
-    // Only run check if not already initialized
-    if (!hasInitializedRef.current) {
+    // Only run check if not already initialized for this specific batchId
+    if (hasInitializedRef.current !== batchId) {
       checkAndStartWorkflow()
     }
     
-    // Reset initialization ref when batchId changes
+    // Cleanup: reset check in progress if batchId changes during check
     return () => {
-      // Reset refs when batchId changes to allow re-initialization for new batch
-      const currentBatchId = batchId
-      if (currentBatchId) {
-        // Use a timeout to check if batchId actually changed
-        // This prevents reset on every render
-        setTimeout(() => {
-          // Only reset if batchId is different (handled by React's dependency array)
-        }, 0)
+      // If batchId changed while check was in progress, reset the flag
+      // This allows the new batchId to start its own check
+      if (checkInProgressRef.current && hasInitializedRef.current !== batchId) {
+        checkInProgressRef.current = false
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -340,13 +356,17 @@ const ScrapingProgressPage: React.FC = () => {
   
   // Reset initialization when batchId changes
   useEffect(() => {
-    hasInitializedRef.current = false
-    checkInProgressRef.current = false
-    previousItemIdsRef.current = new Set()
-    setNewItemIds(new Set())
-    setShowNewItemsNotification(false)
-    setUserScrolled(false)
-    setScrollPosition(0)
+    // Reset refs when batchId changes to allow re-initialization for new batch
+    // Only reset if batchId actually changed (not on first mount)
+    if (hasInitializedRef.current !== null && hasInitializedRef.current !== batchId) {
+      hasInitializedRef.current = null
+      checkInProgressRef.current = false
+      previousItemIdsRef.current = new Set()
+      setNewItemIds(new Set())
+      setShowNewItemsNotification(false)
+      setUserScrolled(false)
+      setScrollPosition(0)
+    }
   }, [batchId])
 
   // Fetch expected total from API if not set (fallback if WebSocket message was missed)

@@ -10,6 +10,11 @@ const api = axios.create({
   timeout: 30000, // 30 second timeout
 })
 
+export interface CreateSessionResponse {
+  session_id: string
+  created_at?: string | null
+}
+
 export interface FormatLinksResponse {
   batch_id: string
   items: Array<{
@@ -18,6 +23,7 @@ export interface FormatLinksResponse {
     link_id: string
   }>
   total: number
+  session_id?: string | null
 }
 
 export interface StartWorkflowResponse {
@@ -60,10 +66,26 @@ export interface ConversationMessageResponse {
 
 export const apiService = {
   /**
+   * Create a new research session with required user guidance
+   */
+  createSession: async (userGuidance: string): Promise<CreateSessionResponse> => {
+    const response = await api.post('/sessions/create', {
+      user_guidance: userGuidance
+    })
+    return response.data
+  },
+
+  /**
    * Format links and create batch
    */
-  formatLinks: async (urls: string[]): Promise<FormatLinksResponse> => {
-    const response = await api.post('/links/format', { urls })
+  formatLinks: async (
+    urls: string[],
+    sessionId?: string
+  ): Promise<FormatLinksResponse> => {
+    const response = await api.post('/links/format', {
+      urls,
+      session_id: sessionId || null
+    })
     return response.data
   },
 
@@ -149,10 +171,10 @@ export const apiService = {
   },
 
   /**
-   * Delete a session
+   * Delete a session by session_id (preferred - more precise)
    */
-  deleteSession: async (batchId: string): Promise<any> => {
-    const response = await api.delete(`/history/${batchId}`)
+  deleteSession: async (sessionId: string): Promise<any> => {
+    const response = await api.delete(`/history/session/${sessionId}`)
     return response.data
   },
 
@@ -162,6 +184,24 @@ export const apiService = {
   exportPhaseReportPdf: async (sessionId: string): Promise<Blob> => {
     const response = await api.get(`/exports/phase-report/${sessionId}`, {
       responseType: 'blob',
+    })
+    return response.data
+  },
+
+  /**
+   * Export session to HTML format
+   */
+  exportSessionHtml: async (
+    sessionId: string,
+    force?: boolean
+  ): Promise<{
+    file_path: string
+    file_url: string
+    cached: boolean
+    filename: string
+  }> => {
+    const response = await api.post(`/exports/session-html/${sessionId}`, null, {
+      params: { force: force || false },
     })
     return response.data
   },

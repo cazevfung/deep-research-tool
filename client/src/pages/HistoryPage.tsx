@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Trash2 } from 'lucide-react'
 import Card from '../components/common/Card'
 import Button from '../components/common/Button'
 import { apiService } from '../services/api'
@@ -8,6 +9,7 @@ import { useUiStore } from '../stores/uiStore'
 
 interface HistorySession {
   batch_id: string
+  session_id: string  // Added for precise session deletion
   created_at: string
   status: 'completed' | 'in-progress' | 'failed' | 'cancelled'
   topic?: string
@@ -56,6 +58,8 @@ const HistoryPage: React.FC = () => {
     setPhase3Steps,
     setSessionId,
     updateScrapingStatus,
+    updateResearchAgentStatus,
+    setGoals,
   } = useWorkflowStore()
   const { addNotification } = useUiStore()
   const [sessions, setSessions] = useState<HistorySession[]>([])
@@ -68,6 +72,93 @@ const HistoryPage: React.FC = () => {
   useEffect(() => {
     loadHistory()
   }, [filterStatus])
+
+  /**
+   * Hydrate workflow store with session data.
+   * This ensures the progress bar shows all completed phases correctly.
+   */
+  const hydrateWorkflowState = (sessionData: HistorySessionDetail) => {
+    // Hydrate scraping status
+    if (sessionData.scraping_status) {
+      const snapshot = sessionData.scraping_status
+      updateScrapingStatus({
+        total: snapshot.total ?? snapshot.expected_total ?? 0,
+        expectedTotal: snapshot.expected_total ?? snapshot.total ?? 0,
+        completed: snapshot.completed ?? 0,
+        failed: snapshot.failed ?? 0,
+        inProgress: snapshot.inProgress ?? 0,
+        items: snapshot.items ?? [],
+        completionRate: snapshot.completionRate ?? 0,
+        is100Percent: Boolean(snapshot.is100Percent),
+        canProceedToResearch: Boolean(snapshot.canProceedToResearch),
+      })
+    }
+
+    // Hydrate research agent status from metadata
+    const metadata = sessionData.metadata || {}
+    const goals = metadata.phase1_confirmed_goals || []
+    const plan = metadata.research_plan || sessionData.phase3?.plan || []
+    const synthesizedGoal = metadata.synthesized_goal || sessionData.phase3?.synthesized_goal || null
+
+    // Determine research agent phase based on available data
+    // If plan exists, research agent is complete (phase 2)
+    // If goals exist but no plan, research agent is in progress (phase 1)
+    // Otherwise, research agent hasn't started (phase 0.5)
+    let researchPhase: string = '0.5'
+    if (plan && Array.isArray(plan) && plan.length > 0) {
+      researchPhase = '2'  // Phase 2 complete - plan exists
+    } else if (goals && Array.isArray(goals) && goals.length > 0) {
+      researchPhase = '1'  // Phase 1 in progress - goals exist but no plan yet
+    }
+
+    // Map goals to the format expected by the store
+    const mappedGoals = goals.map((g: any) => ({
+      id: g.id || g.goal_id || 0,
+      goal_text: g.goal_text || g.goal || '',
+      uses: g.uses || [],
+      sources: g.sources || [],
+    }))
+
+    // Update research agent status
+    updateResearchAgentStatus({
+      phase: researchPhase,
+      currentAction: null,
+      waitingForUser: false,
+      userInputRequired: null,
+    })
+
+    // Set goals and plan
+    if (mappedGoals.length > 0) {
+      setGoals(mappedGoals)
+    }
+    if (plan && Array.isArray(plan) && plan.length > 0) {
+      setPlan(plan)
+    }
+    if (synthesizedGoal) {
+      setSynthesizedGoal(synthesizedGoal)
+    }
+
+    // Hydrate Phase 3 plan/steps if present
+    if (sessionData.phase3) {
+      const phase3Plan = sessionData.phase3.plan || plan || []
+      const phase3Steps = (sessionData.phase3.steps as SessionStep[]) || []
+      
+      // Set plan if not already set
+      if (phase3Plan.length > 0 && (!plan || plan.length === 0)) {
+        setPlan(phase3Plan)
+      }
+      
+      // Set synthesized goal if not already set
+      if (sessionData.phase3.synthesized_goal && !synthesizedGoal) {
+        setSynthesizedGoal(sessionData.phase3.synthesized_goal)
+      }
+      
+      // Set phase 3 steps
+      if (phase3Steps.length > 0) {
+        setPhase3Steps(phase3Steps, sessionData.phase3.next_step_id ?? null)
+      }
+    }
+  }
 
   const loadHistory = async () => {
     setLoading(true)
@@ -98,27 +189,8 @@ const HistoryPage: React.FC = () => {
       setSessionId(sessionData.session_id || null)
       setWorkflowStarted(false)
 
-      // Hydrate scraping snapshot
-      if (sessionData.scraping_status) {
-        const snapshot = sessionData.scraping_status
-        updateScrapingStatus({
-          total: snapshot.total ?? snapshot.expected_total ?? 0,
-          expectedTotal: snapshot.expected_total ?? snapshot.total ?? 0,
-          completed: snapshot.completed ?? 0,
-          failed: snapshot.failed ?? 0,
-          inProgress: snapshot.inProgress ?? 0,
-          items: snapshot.items ?? [],
-          completionRate: snapshot.completionRate ?? 0,
-          is100Percent: Boolean(snapshot.is100Percent),
-          canProceedToResearch: Boolean(snapshot.canProceedToResearch),
-        })
-      }
-
-      // Hydrate Phase 3 plan/steps if present
-      setPlan((sessionData.phase3?.plan as any) ?? null)
-      setSynthesizedGoal(sessionData.phase3?.synthesized_goal ?? null)
-      const phase3Steps = (sessionData.phase3?.steps as SessionStep[]) ?? []
-      setPhase3Steps(phase3Steps, sessionData.phase3?.next_step_id ?? null)
+      // Hydrate workflow state (scraping, research agent, phase 3)
+      hydrateWorkflowState(sessionData)
       
       // Determine current phase from session data
       const resolvedPhase =
@@ -170,11 +242,22 @@ const HistoryPage: React.FC = () => {
 
   const handleView = async (batchId: string) => {
     try {
-      const sessionData = await apiService.getHistorySession(batchId)
+      // Load session data
+      const sessionData = (await apiService.getHistorySession(batchId)) as HistorySessionDetail
       
-      // Restore state
+      // Restore workflow state
       setBatchId(batchId)
-      setCurrentPhase('complete')
+      setSessionId(sessionData.session_id || null)
+      setWorkflowStarted(false)
+
+      // Hydrate workflow state (scraping, research agent, phase 3)
+      // This ensures the progress bar shows all completed phases correctly
+      hydrateWorkflowState(sessionData)
+
+      // Set current phase (should be 'complete' for completed sessions)
+      const resolvedPhase = sessionData.current_phase || 
+        (sessionData.status === 'completed' ? 'complete' : 'research')
+      setCurrentPhase(resolvedPhase as any)
       
       // Navigate to report
       navigate('/report')
@@ -184,13 +267,13 @@ const HistoryPage: React.FC = () => {
     }
   }
 
-  const handleDelete = async (batchId: string) => {
+  const handleDelete = async (sessionId: string, batchId: string) => {
     if (!window.confirm('确定要删除这个会话吗？此操作无法撤销。')) {
       return
     }
 
     try {
-      await apiService.deleteSession(batchId)
+      await apiService.deleteSession(sessionId)
       addNotification('会话已删除', 'success')
       loadHistory() // Reload list
     } catch (err: any) {
@@ -208,12 +291,20 @@ const HistoryPage: React.FC = () => {
         throw new Error('未找到会话ID，无法导出PDF')
       }
 
-      // Open export page in new tab
-      window.open(`/export/${sessionId}`, '_blank')
-      addNotification('已打开导出页面', 'success')
+      // Export HTML using the new API
+      const result = await apiService.exportSessionHtml(sessionId)
+      
+      // Open the HTML file in a new window
+      window.open(result.file_url, '_blank')
+      
+      if (result.cached) {
+        addNotification('已打开导出的HTML文件（使用缓存）', 'success')
+      } else {
+        addNotification('已导出并打开HTML文件', 'success')
+      }
     } catch (err: any) {
-      console.error('Failed to open export page:', err)
-      const detail = err?.response?.data?.detail || err?.message || '无法打开导出页面'
+      console.error('Failed to export HTML:', err)
+      const detail = err?.response?.data?.detail || err?.message || '导出失败，请重试'
       addNotification(detail, 'error')
     } finally {
       setExportingBatchId(null)
@@ -318,6 +409,9 @@ const HistoryPage: React.FC = () => {
                               <span className="font-medium">批次ID:</span> {session.batch_id}
                             </p>
                             <p>
+                              <span className="font-medium">会话ID:</span> {session.session_id}
+                            </p>
+                            <p>
                               <span className="font-medium">创建时间:</span>{' '}
                               {new Date(session.created_at).toLocaleString('zh-CN')}
                             </p>
@@ -361,14 +455,13 @@ const HistoryPage: React.FC = () => {
                               继续
                             </Button>
                           )}
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleDelete(session.batch_id)}
-                            className="text-red-600 hover:text-red-700"
+                          <button
+                            onClick={() => handleDelete(session.session_id, session.batch_id)}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                            title="删除"
                           >
-                            删除
-                          </Button>
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
                     </div>

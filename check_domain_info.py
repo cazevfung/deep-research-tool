@@ -46,3 +46,4 @@ print("Current Status: Static website hosting is ENABLED")
 print("But website endpoint DNS may not be activated yet.")
 print("\nRecommendation: Check OSS Console -> Domain Names section")
 
+

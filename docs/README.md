@@ -45,6 +45,12 @@ Comprehensive plan to improve the research tool's prompt system - addressing rig
 - overview/ — High-level project organization
 - analysis/, implementation/, installation/, solutions/, debug/ — Existing detailed docs
 
+### Implementation Plans
+- implementation/USER_GUIDANCE_EARLY_COLLECTION_PLAN.md — Move user guidance collection before link input
+
+### Frontend Design
+- frontend/USER_GUIDANCE_PAGE_REDESIGN.md — UI redesign for User Guidance Page (question-focused with circular button)
+
 ## Index
 
 ### Overview

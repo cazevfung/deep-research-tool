@@ -1,0 +1,76 @@
+{
+  "success": true,
+  "video_id": "KeZn5VxnxaI",
+  "url": "https://www.youtube.com/watch?v=KeZn5VxnxaI",
+  "content": "We use AI for so much, for writing emails, summarizing reports, and even recommending what we eat. But behind all that magic, there is something called an AI model. If you ever wonder what models like GPD4, Claude, or Gymnite actually do, and how to choose the right one, this video is for you. And if you're thinking about building your own AI tools like smart assistant, a content generator, or a lead scoring app, I'll show you how platforms like Thrive actually do that without writing a single line of code. Let's dive in. An AM model is like a digital brain trains of ton of information. You ask it a question or give it a task and it gives you a response. That could be a piece of writing, a summary, an image, code, anything. But not all AI models are the same. Each one has different strengths, weaknesses, and ideal uses. Let's say you are building something with AI, like a customer support bot or a tool to organize your sales lead. Do you want it to answer fast, handle long documents, be great at writing? Different goals call for different models. Start by asking, what do I need this AI to do? Does it need to be fast, accurate, or cost effective? Am I working with private or sensitive data? Do I need deep reasoning or just a quick short answers? Once you're clear on what you need, choosing the right model becomes much easier. Let's take a look at some of the most widely used AI models today and what they are each designed to do. This will help you understand the range of capabilities out there and how different models are built with different goals in mind. GBD4 by OpenAI, a general purpose model built for deep reasoning, writing and complex tasks. Often used for research, coding, or anything that needs accuracy and context. Three, bionthropic. This is great for summarizing documents and maintaining a helpful balanced tone. Popular in customer support and document heavy use cases. Gemini 1.5 by Google. A multimodel model, meaning it can understand images, video, and text all at once. Used in tools that combine visual and written inputs. Mistral by Mistl AI. Open- source, lightweight, and designed for speed and efficiency. Often chosen for the smaller apps or when cost is a factor. Deepseek by DeepSci. Designed for technical tasks like math and code. It's a good fit for tools that requisi built for real-time responses using current web data. still evolving, but aim at use cases where up to the info is key. These are just a few examples of the most talked about models right now. Each one is optimized for different goals. So, understanding what you need is key before picking one. There's a big difference between just using AI and actually integrating it with into a tool or workflow. If you are building a software for your team or business, picking the right model is a big deal. Do you go with GBD4, HUD, Mistral? Which one is faster, safer, cheaper? That's where Glide comes in. Glide automatically selects the best model for your use case, whether it's summarizing text, classifying data, or generating content and connect you to the enterprisegrade version that's far secure and your data is never used for training. Once the model is set, you can build apps that put the AI power directly in your user's hands, whether it's internal teams or customers. Now, this means smarter inputs, a system workflows, or dynamic features, all inside your own custom software. No code required. So to recap, a models are the brains behind most modern tools. Each one has unique strengths. Pick based on what you need. And if you want to build with AI without being a developer, BL makes it possible. Did this help? Hit a like and subscribe for more videos about AI automation and building smart businesses. Got questions? Drop them in the comments. I'll read them all. I'll see you in the next one. We use AI for so much, for writing emails, summarizing reports, and even recommending what we eat. But behind all that magic, there is something called an AI model. If you ever wonder what models like GPD4, Claude, or Gymnite actually do, and how to choose the right one, this video is for you. And if you're thinking about building your own AI tools like smart assistant, a content generator, or a lead scoring app, I'll show you how platforms like Thrive actually do that without writing a single line of code. Let's dive in. An AM model is like a digital brain trains of ton of information. You ask it a question or give it a task and it gives you a response. That could be a piece of writing, a summary, an image, code, anything. But not all AI models are the same. Each one has different strengths, weaknesses, and ideal uses. Let's say you are building something with AI, like a customer support bot or a tool to organize your sales lead. Do you want it to answer fast, handle long documents, be great at writing? Different goals call for different models. Start by asking, what do I need this AI to do? Does it need to be fast, accurate, or cost effective? Am I working with private or sensitive data? Do I need deep reasoning or just a quick short answers? Once you're clear on what you need, choosing the right model becomes much easier. Let's take a look at some of the most widely used AI models today and what they are each designed to do. This will help you understand the range of capabilities out there and how different models are built with different goals in mind. GBD4 by OpenAI, a general purpose model built for deep reasoning, writing and complex tasks. Often used for research, coding, or anything that needs accuracy and context. Three, bionthropic. This is great for summarizing documents and maintaining a helpful balanced tone. Popular in customer support and document heavy use cases. Gemini 1.5 by Google. A multimodel model, meaning it can understand images, video, and text all at once. Used in tools that combine visual and written inputs. Mistral by Mistl AI. Open- source, lightweight, and designed for speed and efficiency. Often chosen for the smaller apps or when cost is a factor. Deepseek by DeepSci. Designed for technical tasks like math and code. It's a good fit for tools that requisi built for real-time responses using current web data. still evolving, but aim at use cases where up to the info is key. These are just a few examples of the most talked about models right now. Each one is optimized for different goals. So, understanding what you need is key before picking one. There's a big difference between just using AI and actually integrating it with into a tool or workflow. If you are building a software for your team or business, picking the right model is a big deal. Do you go with GBD4, HUD, Mistral? Which one is faster, safer, cheaper? That's where Glide comes in. Glide automatically selects the best model for your use case, whether it's summarizing text, classifying data, or generating content and connect you to the enterprisegrade version that's far secure and your data is never used for training. Once the model is set, you can build apps that put the AI power directly in your user's hands, whether it's internal teams or customers. Now, this means smarter inputs, a system workflows, or dynamic features, all inside your own custom software. No code required. So to recap, a models are the brains behind most modern tools. Each one has unique strengths. Pick based on what you need. And if you want to build with AI without being a developer, BL makes it possible. Did this help? Hit a like and subscribe for more videos about AI automation and building smart businesses. Got questions? Drop them in the comments. I'll read them all. I'll see you in the next one.",
+  "title": "What are AI Models? | AI Models Explained",
+  "author": "Glide",
+  "publish_date": "",
+  "source": "YouTube",
+  "language": "auto",
+  "word_count": 1358,
+  "extraction_method": "youtube",
+  "extraction_timestamp": "2025-11-14T11:54:55.132475",
+  "batch_id": "20251114_035033",
+  "link_id": "yt_req10",
+  "error": null,
+  "summary": {
+    "transcript_summary": {
+      "key_facts": [
+        "An AI model functions as a digital brain trained on vast amounts of information.",
+        "AI models generate responses such as writing, summaries, images, or code based on user input.",
+        "Different AI models have distinct strengths, weaknesses, and ideal use cases.",
+        "GPT-4 by OpenAI is designed for deep reasoning, writing, and complex tasks.",
+        "Claude by Anthropic excels at summarizing documents and maintaining a helpful tone.",
+        "Gemini 1.5 by Google is a multimodal model capable of processing text, images, and video simultaneously.",
+        "Mistral by Mistral AI is open-source, lightweight, and optimized for speed and efficiency.",
+        "Deepseek by DeepSeek is tailored for technical tasks like math and code generation.",
+        "Glide automatically selects the best AI model for specific use cases like summarization or content generation.",
+        "Glide connects users to an enterprise-grade version where data is never used for training.",
+        "AI models can be integrated into custom software without writing any code using platforms like Glide.",
+        "Building AI tools requires choosing a model based on performance needs such as speed, accuracy, or cost."
+      ],
+      "key_opinions": [
+        "Choosing the right AI model depends on clearly defining your needs first.",
+        "GPT-4 is particularly well-suited for research and coding due to its high accuracy.",
+        "Claude’s balanced tone makes it ideal for customer support interactions.",
+        "Gemini 1.5’s multimodal capability enables advanced applications combining visual and textual inputs.",
+        "Mistral is a smart choice for smaller apps where cost and speed are priorities.",
+        "Deepseek shows strong potential for real-time applications requiring up-to-date information.",
+        "Glide simplifies AI integration by handling model selection automatically.",
+        "Using Glide eliminates the need for developers to write code when building AI-powered tools.",
+        "Understanding model capabilities is essential before selecting one for business applications.",
+        "The difference between using AI and integrating it into workflows is significant in practice."
+      ],
+      "key_datapoints": [
+        "GPT-4 is used for research, coding, and tasks requiring context and accuracy.",
+        "Claude is popular in document-heavy use cases and customer support.",
+        "Gemini 1.5 supports image, video, and text input simultaneously.",
+        "Mistral is open-source and chosen for cost-sensitive or lightweight applications.",
+        "Deepseek is optimized for technical tasks including math and code generation.",
+        "Glide provides access to enterprise-grade models with enhanced security.",
+        "AI models can be selected automatically by platforms like Glide based on task type.",
+        "No code is required to build AI-powered apps using Glide.",
+        "Data used with Glide is not used for model training.",
+        "AI models vary in speed, accuracy, cost, and suitability for sensitive data."
+      ],
+      "topic_areas": [
+        "AI model types",
+        "Model selection criteria",
+        "AI integration platforms",
+        "No-code AI development",
+        "Enterprise AI security",
+        "Multimodal AI",
+        "Real-time AI responses",
+        "Open-source models",
+        "Business AI tools",
+        "Custom app automation"
+      ],
+      "word_count": 1358,
+      "total_markers": 32
+    },
+    "comments_summary": {},
+    "created_at": "2025-11-14T11:57:26.775039",
+    "model_used": "qwen-flash"
+  }
+}

@@ -8,7 +8,8 @@ const Sidebar: React.FC = () => {
   const { sidebarOpen, toggleSidebar } = useUiStore()
 
   const navItems: Array<{ path: string; label: string; icon: IconName }> = [
-    { path: '/', label: '添加链接', icon: 'link' },
+    { path: '/', label: '研究指导', icon: 'book' },
+    { path: '/links', label: '添加链接', icon: 'link' },
     { path: '/scraping', label: '内容收集', icon: 'download' },
     { path: '/research', label: '研究规划', icon: 'research' },
     { path: '/phase3', label: '深度研究', icon: 'chart' },

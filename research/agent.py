@@ -202,11 +202,25 @@ class DeepResearchAgent:
                 return cached
 
         pre_role_feedback = session.get_metadata("phase_feedback_pre_role", "")
-        if force or not pre_role_feedback:
+        
+        # Logic:
+        # 1. If force=True: Use existing value (or empty) - don't prompt
+        # 2. If value exists: Use it - don't prompt (collected earlier)
+        # 3. If value missing: Prompt user (fallback for backward compatibility)
+        
+        if force:
+            # When forcing, use existing value or empty string
+            # Don't prompt even if empty (user may have intentionally left it blank)
+            pre_role_feedback = pre_role_feedback or ""
+        elif not pre_role_feedback:
+            # Only prompt if not already collected (backward compatibility)
             pre_role_feedback = self.ui.prompt_user(
                 "在生成研究角色前，你想强调哪些研究重点或背景？(可选，留空表示无额外指导)"
             )
             session.set_metadata("phase_feedback_pre_role", pre_role_feedback or "")
+        else:
+            # Value exists from earlier collection - use it
+            logger.info(f"Using pre-collected user_guidance from session")
 
         self.ui.display_header("Phase 0.5: 生成研究角色")
         phase0_5 = Phase0_5RoleGeneration(self.client, session, ui=self.ui)

@@ -1945,7 +1945,8 @@ class WorkflowService:
                     run_research_agent,
                     batch_id,
                     ui=ui,
-                    progress_callback=progress_callback
+                    progress_callback=progress_callback,
+                    session_id=session_id  # Pass session_id to resume existing session if found
                 )
                 
                 if not result:
